@@ -1,4 +1,6 @@
-# BetterFi 
+# BetterFi
+
+# A better fight to predatory lending
 
 ## Problem Statement:
 
