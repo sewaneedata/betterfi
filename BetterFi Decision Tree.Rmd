@@ -1,0 +1,178 @@
+---
+title: "BetterFi"
+author: "Tilina Alzaben"
+date: '2022-06-21'
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r, echo = FALSE}
+#IMPORT LIBRARIES
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(lubridate)
+```
+
+```{r, echo = FALSE}
+#Read in the Client and Loan Data
+client <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-clientdata-anon.csv")
+loan <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-loandata-anon.csv")
+```
+
+```{r}
+#Cleaning Client Data
+clientClean <- client %>% 
+  mutate(age = year(Sys.Date()) - dob) %>% 
+  mutate(totalExpenses = rowSums(across(housingexpense:carinsexpense), na.rm = TRUE)) %>%
+  mutate(residenceyear= floor(as.numeric(residenceperiod)/12)) %>% 
+  mutate(employer = ifelse(is.na(employer), "UNEMPLOYED", client$employer)) %>% 
+  select(custID, 
+         sex, 
+         age, 
+         totalExpenses,
+         cellphone,
+         streetcity,
+         streetzip,
+         incomeamt,
+         residenceyear,
+         County, 
+         income_source, 
+         employer, 
+         referenceperson, 
+         incomelevel)
+clientClean %>% View
+```
+
+```{r}
+#Cleaning Loan Data
+loanClean <- loan %>% 
+  mutate(status_code = ifelse(is.na(status_code), "active", loan$status_code)) %>% 
+  select(primary_borrower_name, status_code, purpose, amount_approved)
+loanClean %>% View
+```
+
+```{r}
+#Creating One Data set
+df <- merge(clientClean, loanClean, by.x = 'custID', by.y = 'primary_borrower_name')
+df %>% View
+```
+
+```{r}
+#Turning Categorical Variables into Factors
+df$sex <- as.factor(df$sex)
+df$cellphone <- as.factor(df$cellphone)
+df$streetcity <- as.factor(df$streetcity)
+df$streetzip <- as.factor(df$streetzip)
+df$County <- as.factor(df$County)
+df$income_source <- as.factor(df$income_source)
+df$employer <- as.factor(df$employer)
+df$referenceperson <- as.factor(df$referenceperson)
+df$incomelevel <- as.factor(df$incomelevel)
+
+df$status_code <- as.factor(df$status_code)
+df$purpose <- as.factor(df$purpose)
+
+str(df)
+```
+
+```{r}
+#Finding Variables w/ Smallest Variance
+variables <- names(df)
+variables <- variables[-c(1, 15)]
+
+base_model <- tree(status_code ~ 1, data = df)
+base_dev <- summary(base_model)$dev
+
+for(var in 1:length(variables)) {
+  new_model <- tree(formula(paste0("status_code ~ ", variables[var])), 
+                    na.action = na.omit, 
+                    method = "recursive.partition", 
+                    split = c("deviance", "gini"), 
+                    data = df)
+  
+  if(summary(new_model)$dev < base_dev) {
+    base_model <- new_model 
+    base_dev <- summary(new_model)$dev
+  }
+ 
+  variables <- variables[-var]
+}
+
+print(summary(base_model))
+print(variables[var])
+```
+
+```{r}
+for(var in 1:length(variables)) {
+  new_model <- tree(formula(paste0("status_code ~ ", first + variables[var])), 
+                    na.action = na.omit, 
+                    method = "recursive.partition", 
+                    split = c("deviance", "gini"), 
+                    data = df)
+  
+  if(summary(new_model)$dev < base_dev) {
+    base_model <- new_model 
+    base_dev <- summary(new_model)$dev
+  }
+ 
+  variables <- variables[-var]
+}
+
+print(summary(base_model))
+print(variables[var])
+
+```
+
+
+
+```{r}
+#CLASSIFICATION Decision Tree
+#install.packages('tree')
+library(tree)
+model = tree(status_code ~ sex + age + County + income_source + employer + incomelevel +                  referenceperson + purpose + amount_approved, 
+             na.action = na.omit, 
+             method = "recursive.partition", 
+             split = c("deviance", "gini"),
+             data = df)
+summary(model)
+```
+
+```{r}
+#Variables Used in Decision Tree
+summary(model)$used
+```
+```{r}
+#Variables Not Used in Decision Tree
+names(df)[which(!(names(df) %in% summary(model)$used))]
+```
+
+```{r}
+#Plotting the Decision Tree
+plot(model)
+text(model)
+```
+
+```{r}
+#Confusion Matrix
+model_pred = predict(model, df, type = "class")
+table(predicted = model_pred, actual = df$status_code)
+```
+
+```{r}
+#Pruned Decision Tree
+prune = prune.misclass(model, best = 8)
+summary(prune)
+```
+
+```{r}
+plot(prune)
+text(prune, pretty = 0)
+title(main = "Pruned Classification Tree")
+```
+
+
+
