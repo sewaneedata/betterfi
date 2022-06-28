@@ -10,20 +10,24 @@ output:
 
 ```{r, echo = FALSE}
 #IMPORT LIBRARIES
+install.packages('tibble')
+install.packages('hardhat')
+install.packages('ggplot2')
+library(tibble)
+#library(mlbench)
+library(hardhat)
+library(caret)
 library(readr)
-library(dplyr)
 library(ggplot2)
+library(dplyr)
 library(knitr)
 library(lubridate)
-library(mlbench)
-library(caret)
 ```
 
 ```{r, echo = FALSE}
 #Read in the Client and Loan Data
-loan <- read_csv ('loandata.csv')
-client <- read_csv('clientdata.csv')
-transaction <- read_csv('transactiondata.csv')
+client <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-clientdata-anon.csv")
+loan <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-loandata-anon.csv")
 ```
 
 ```{r}
@@ -95,7 +99,6 @@ train <- df[1:130,]
 train %>% View
 ```
 
-
 ```{r}
 #CLASSIFICATION Decision Tree
 #install.packages('tree')
@@ -152,7 +155,12 @@ pred
 ```{r}
 #Feature Selection
 control <- trainControl(method="repeatedcv", number=10, repeats=3)
-model <- train(status_code~., data=train, method="lvq", preProcess="scale", trControl=control, na.action = na.omit)
+model <- train(status_code~., 
+               data=train, 
+               method="lvq", 
+               preProcess="scale", 
+               trControl=control, 
+               na.action = na.omit)
 
 importance <- varImp(model, scale=FALSE)
 print(importance)
@@ -161,19 +169,18 @@ plot(importance)
     
 ```{r}
 #Model After Feature Selection 
-model2 = tree(status_code ~ amount_approved, 
-              employer, 
-              streetzip, 
-              income_source, 
-              incomeamt, 
-              purpose, 
-              referenceperson, 
+model2 = tree(status_code ~ amount_approved + employer + streetzip + income_source + 
+                incomeamt + purpose + referenceperson, 
              na.action = na.omit, 
              method = "class", 
              split = c("deviance", "gini"),
              data = train)
 summary(model2)
-
 ```
 
+```{r}
+#Plotting the Decision Tree
+plot(model2)
+text(model2)
+```
 
