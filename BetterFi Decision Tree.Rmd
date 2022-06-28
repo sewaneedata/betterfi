@@ -79,18 +79,17 @@ df$purpose <- as.factor(df$purpose)
 str(df)
 ```
 
-
-
-
 ```{r}
 #CLASSIFICATION Decision Tree
 #install.packages('tree')
 library(tree)
 df <- df[-1]
-train <- df %>% filter(status_code != 'active')
+df <- df %>% filter(status_code != 'active')
+train <- df[1:130,]
+train %>% View
 model = tree(status_code ~ ., 
              na.action = na.omit, 
-             method = "recursive.partition", 
+             method = "class", 
              split = c("deviance", "gini"),
              data = train)
 summary(model)
@@ -130,7 +129,7 @@ title(main = "Pruned Classification Tree")
 ```
 ```{r}
 #Testing the Decision Tree
-test <- df %>% filter(status_code == 'active')
+test <- df[130:nrow(df),]
 pred <- predict(model, test) 
 pred
 ```
