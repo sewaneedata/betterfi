@@ -10,13 +10,6 @@ output:
 
 ```{r, echo = FALSE}
 #IMPORT LIBRARIES
-install.packages('tibble')
-install.packages('hardhat')
-install.packages('ggplot2')
-library(tibble)
-#library(mlbench)
-library(hardhat)
-library(caret)
 library(readr)
 library(ggplot2)
 library(dplyr)
@@ -182,5 +175,23 @@ summary(model2)
 #Plotting the Decision Tree
 plot(model2)
 text(model2)
+```
+```{r}
+#Pruned Decision Tree
+prune2 = prune.misclass(model2, best = 6)
+summary(prune2)
+
+plot(prune2)
+text(prune2, pretty = 0)
+title(main = "Pruned Classification Tree")
+```
+```{r}
+library(rpart)
+library(rpart.plot)
+
+tree <- rpart(status_code ~ amount_approved + employer + streetzip + income_source + incomeamt + purpose + referenceperson, 
+             na.action = na.omit, data=train, cp=.02)
+# Visualize the decision tree with rpart.plot
+rpart.plot(tree, box.palette="RdBu", shadow.col="gray", nn=TRUE)
 ```
 
