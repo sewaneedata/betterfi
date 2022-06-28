@@ -1,0 +1,179 @@
+---
+title: "BetterFi"
+author: "Tilina Alzaben"
+date: '2022-06-21'
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r, echo = FALSE}
+#IMPORT LIBRARIES
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(lubridate)
+library(mlbench)
+library(caret)
+```
+
+```{r, echo = FALSE}
+#Read in the Client and Loan Data
+loan <- read_csv ('loandata.csv')
+client <- read_csv('clientdata.csv')
+transaction <- read_csv('transactiondata.csv')
+```
+
+```{r}
+#Cleaning Client Data
+clientClean <- client %>% 
+  mutate(age = year(Sys.Date()) - dob) %>% 
+  mutate(totalExpenses = rowSums(across(housingexpense:carinsexpense), na.rm = TRUE)) %>%
+  mutate(residenceyear= floor(as.numeric(residenceperiod)/12)) %>% 
+  mutate(employer = ifelse(is.na(employer), "UNEMPLOYED", client$employer)) %>% 
+  dplyr::select(custID,
+         sex, 
+         age, 
+         totalExpenses,
+         cellphone,
+         streetcity,
+         streetzip,
+         incomeamt,
+         residenceyear,
+         County, 
+         income_source, 
+         employer, 
+         referenceperson, 
+         incomelevel)
+clientClean %>% View
+```
+
+```{r}
+#Cleaning Loan Data
+loanClean <- loan %>% 
+  mutate(status_code = ifelse(is.na(status_code), "active", loan$status_code)) %>% 
+  dplyr::select(primary_borrower_name, status_code, purpose, amount_approved)
+loanClean %>% View
+```
+
+```{r}
+#Creating One Data set
+df <- merge(clientClean, loanClean, by.x = 'custID', by.y = 'primary_borrower_name')
+df %>% View
+
+df <- df[df$status_code != 'active',]
+df %>% View
+```
+
+```{r}
+#Turning Categorical Variables into Factors
+df$sex <- as.factor(df$sex)
+df$cellphone <- as.factor(df$cellphone)
+df$streetcity <- as.factor(df$streetcity)
+df$streetzip <- as.factor(df$streetzip)
+df$County <- as.factor(df$County)
+df$income_source <- as.factor(df$income_source)
+df$employer <- as.factor(df$employer)
+df$referenceperson <- as.factor(df$referenceperson)
+df$incomelevel <- as.factor(df$incomelevel)
+
+df$status_code <- as.factor(df$status_code)
+df$purpose <- as.factor(df$purpose)
+
+#Dropping the 'active' Factor
+df$status_code <- droplevels(df$status_code)
+str(df)
+```
+
+```{r}
+#Training Data Set
+df <- df[-1]
+
+train <- df[1:130,]
+train %>% View
+```
+
+
+```{r}
+#CLASSIFICATION Decision Tree
+#install.packages('tree')
+library(tree)
+model = tree(status_code ~ ., 
+             na.action = na.omit, 
+             method = "class", 
+             split = c("deviance", "gini"),
+             data = train)
+summary(model)
+```
+
+```{r}
+#Variables Used in Decision Tree
+summary(model)$used
+```
+
+```{r}
+#Variables Not Used in Decision Tree
+names(train)[which(!(names(train) %in% summary(model)$used))]
+```
+
+```{r}
+#Plotting the Decision Tree
+plot(model)
+text(model)
+```
+
+```{r}
+#Confusion Matrix
+model_pred = predict(model, train, type = "class")
+table(predicted = model_pred, actual = train$status_code)
+```
+
+```{r}
+#Pruned Decision Tree
+prune = prune.misclass(model, best = 8)
+summary(prune)
+```
+
+```{r}
+plot(prune)
+text(prune, pretty = 0)
+title(main = "Pruned Classification Tree")
+```
+
+```{r}
+#Testing the Decision Tree
+test <- df[130:nrow(df),]
+pred <- predict(model, test) 
+pred
+```
+
+```{r}
+#Feature Selection
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+model <- train(status_code~., data=train, method="lvq", preProcess="scale", trControl=control, na.action = na.omit)
+
+importance <- varImp(model, scale=FALSE)
+print(importance)
+plot(importance)
+```
+    
+```{r}
+#Model After Feature Selection 
+model2 = tree(status_code ~ amount_approved, 
+              employer, 
+              streetzip, 
+              income_source, 
+              incomeamt, 
+              purpose, 
+              referenceperson, 
+             na.action = na.omit, 
+             method = "class", 
+             split = c("deviance", "gini"),
+             data = train)
+summary(model2)
+
+```
+
+
