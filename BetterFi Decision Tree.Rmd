@@ -30,7 +30,7 @@ clientClean <- client %>%
   mutate(totalExpenses = rowSums(across(housingexpense:carinsexpense), na.rm = TRUE)) %>%
   mutate(residenceyear= floor(as.numeric(residenceperiod)/12)) %>% 
   mutate(employer = ifelse(is.na(employer), "UNEMPLOYED", client$employer)) %>% 
-  select(custID, 
+  select(custID,
          sex, 
          age, 
          totalExpenses,
@@ -79,53 +79,6 @@ df$purpose <- as.factor(df$purpose)
 str(df)
 ```
 
-```{r}
-#Finding Variables w/ Smallest Variance
-variables <- names(df)
-variables <- variables[-c(1, 15)]
-
-base_model <- tree(status_code ~ 1, data = df)
-base_dev <- summary(base_model)$dev
-
-for(var in 1:length(variables)) {
-  new_model <- tree(formula(paste0("status_code ~ ", variables[var])), 
-                    na.action = na.omit, 
-                    method = "recursive.partition", 
-                    split = c("deviance", "gini"), 
-                    data = df)
-  
-  if(summary(new_model)$dev < base_dev) {
-    base_model <- new_model 
-    base_dev <- summary(new_model)$dev
-  }
- 
-  variables <- variables[-var]
-}
-
-print(summary(base_model))
-print(variables[var])
-```
-
-```{r}
-for(var in 1:length(variables)) {
-  new_model <- tree(formula(paste0("status_code ~ ", first + variables[var])), 
-                    na.action = na.omit, 
-                    method = "recursive.partition", 
-                    split = c("deviance", "gini"), 
-                    data = df)
-  
-  if(summary(new_model)$dev < base_dev) {
-    base_model <- new_model 
-    base_dev <- summary(new_model)$dev
-  }
- 
-  variables <- variables[-var]
-}
-
-print(summary(base_model))
-print(variables[var])
-
-```
 
 
 
@@ -133,11 +86,13 @@ print(variables[var])
 #CLASSIFICATION Decision Tree
 #install.packages('tree')
 library(tree)
-model = tree(status_code ~ sex + age + County + income_source + employer + incomelevel +                  referenceperson + purpose + amount_approved, 
+df <- df[-1]
+train <- df %>% filter(status_code != 'active')
+model = tree(status_code ~ ., 
              na.action = na.omit, 
              method = "recursive.partition", 
              split = c("deviance", "gini"),
-             data = df)
+             data = train)
 summary(model)
 ```
 
@@ -147,7 +102,7 @@ summary(model)$used
 ```
 ```{r}
 #Variables Not Used in Decision Tree
-names(df)[which(!(names(df) %in% summary(model)$used))]
+names(train)[which(!(names(train) %in% summary(model)$used))]
 ```
 
 ```{r}
@@ -158,8 +113,8 @@ text(model)
 
 ```{r}
 #Confusion Matrix
-model_pred = predict(model, df, type = "class")
-table(predicted = model_pred, actual = df$status_code)
+model_pred = predict(model, train, type = "class")
+table(predicted = model_pred, actual = train$status_code)
 ```
 
 ```{r}
@@ -172,6 +127,12 @@ summary(prune)
 plot(prune)
 text(prune, pretty = 0)
 title(main = "Pruned Classification Tree")
+```
+```{r}
+#Testing the Decision Tree
+test <- df %>% filter(status_code == 'active')
+pred <- predict(model, test) 
+pred
 ```
 
 
