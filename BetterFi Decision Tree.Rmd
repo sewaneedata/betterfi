@@ -26,23 +26,33 @@ loan <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-loandata-anon.
 ```{r}
 #Cleaning Client Data
 clientClean <- client %>% 
-  mutate(age = year(Sys.Date()) - dob) %>% 
-  mutate(totalExpenses = rowSums(across(housingexpense:carinsexpense), na.rm = TRUE)) %>%
+  mutate(age = year(Sys.Date()) - dob) %>%
   mutate(residenceyear= floor(as.numeric(residenceperiod)/12)) %>% 
   mutate(employer = ifelse(is.na(employer), "UNEMPLOYED", client$employer)) %>% 
-  dplyr::select(custID,
+  mutate(incomeamt = case_when(incomefreq == 'MO' || incomefreq == 'mo' ~ incomeamt, 
+                               incomefreq == 'biwk' || incomefreq == 'BI' ~ incomeamt * 2, 
+                               incomefreq == 'WE' ~ incomeamt * 4)) %>% 
+  mutate(residencetype = ifelse(is.na(residencetype), 'UNKNOWN', client$residencetype)) %>% 
+  select(custID,
          sex, 
          age, 
-         totalExpenses,
+         licensestate,
+         carsinhh,
+         housingexpense,
+         phoneplanexpense,
+         waterexpense,
+         elecexpense,
+         carinsexpense,
+         annualincome,
          cellphone,
          streetcity,
          streetzip,
-         incomeamt,
          residenceyear,
          County, 
          income_source, 
          employer, 
-         referenceperson, 
+         referenceperson,
+         incomeamt,
          incomelevel)
 clientClean %>% View
 ```
@@ -51,7 +61,8 @@ clientClean %>% View
 #Cleaning Loan Data
 loanClean <- loan %>% 
   mutate(status_code = ifelse(is.na(status_code), "active", loan$status_code)) %>% 
-  dplyr::select(primary_borrower_name, status_code, purpose, amount_approved)
+  mutate(amountDue = payment_due_amount_cents * 0.01 ) %>% 
+  select(primary_borrower_name, status_code, purpose, amount_approved, interest_rate, amountDue)
 loanClean %>% View
 ```
 
@@ -61,6 +72,7 @@ df <- merge(clientClean, loanClean, by.x = 'custID', by.y = 'primary_borrower_na
 df %>% View
 
 df <- df[df$status_code != 'active',]
+df <- df[df$incomelevel != '#N/A',]
 df %>% View
 ```
 
@@ -75,12 +87,15 @@ df$income_source <- as.factor(df$income_source)
 df$employer <- as.factor(df$employer)
 df$referenceperson <- as.factor(df$referenceperson)
 df$incomelevel <- as.factor(df$incomelevel)
+df$licensestate <- as.factor(df$licensestate)
+df$carsinhh <- as.factor(df$carsinhh)
 
 df$status_code <- as.factor(df$status_code)
 df$purpose <- as.factor(df$purpose)
 
 #Dropping the 'active' Factor
 df$status_code <- droplevels(df$status_code)
+df$incomelevel <- droplevels(df$incomelevel)
 str(df)
 ```
 
@@ -97,7 +112,7 @@ train %>% View
 #install.packages('tree')
 library(tree)
 model = tree(status_code ~ ., 
-             na.action = na.omit, 
+             na.action = na.pass, 
              method = "class", 
              split = c("deviance", "gini"),
              data = train)
@@ -162,13 +177,14 @@ plot(importance)
     
 ```{r}
 #Model After Feature Selection 
-model2 = tree(status_code ~ amount_approved + employer + streetzip + income_source + 
-                incomeamt + purpose + referenceperson, 
+model2 = tree(status_code ~ employer + streetzip + income_source + 
+                incomeamt + incomelevel + purpose + referenceperson, 
              na.action = na.omit, 
              method = "class", 
              split = c("deviance", "gini"),
              data = train)
 summary(model2)
+save(model2,file = 'model.RData')
 ```
 
 ```{r}
@@ -186,12 +202,8 @@ text(prune2, pretty = 0)
 title(main = "Pruned Classification Tree")
 ```
 ```{r}
-library(rpart)
-library(rpart.plot)
-
-tree <- rpart(status_code ~ amount_approved + employer + streetzip + income_source + incomeamt + purpose + referenceperson, 
-             na.action = na.omit, data=train, cp=.02)
-# Visualize the decision tree with rpart.plot
-rpart.plot(tree, box.palette="RdBu", shadow.col="gray", nn=TRUE)
+model_pred = predict(model2, train, type = "class")
+table(predicted = model_pred, actual = train$status_code)
 ```
+
 
