@@ -36,7 +36,6 @@ clientClean <- client %>%
   select(custID,
          sex, 
          age, 
-         licensestate,
          carsinhh,
          housingexpense,
          phoneplanexpense,
@@ -67,6 +66,24 @@ loanClean %>% View
 ```
 
 ```{r}
+#Combining PIF and Refinanced 
+adjustedLoan <- loan %>% 
+  mutate(status_code = case_when(status_code == 'pif_refinanced' ~ 'pif', 
+                                 is.na(status_code) ~ 'active', 
+                                 TRUE ~ loan$status_code)) %>% 
+  mutate(amountDue = payment_due_amount_cents * 0.01 ) %>% 
+  select(primary_borrower_name, status_code, purpose, amount_approved, interest_rate, amountDue)
+adjustedDf %>% View
+
+new_df <- merge(clientClean, adjustedLoan, by.x = 'custID', by.y = 'primary_borrower_name')
+new_df %>% View
+
+new_df <- new_df[new_df$status_code != 'active',]
+new_df <- new_df[new_df$incomelevel != '#N/A',]
+```
+
+
+```{r}
 #Creating One Data set
 df <- merge(clientClean, loanClean, by.x = 'custID', by.y = 'primary_borrower_name')
 df %>% View
@@ -87,7 +104,6 @@ df$income_source <- as.factor(df$income_source)
 df$employer <- as.factor(df$employer)
 df$referenceperson <- as.factor(df$referenceperson)
 df$incomelevel <- as.factor(df$incomelevel)
-df$licensestate <- as.factor(df$licensestate)
 df$carsinhh <- as.factor(df$carsinhh)
 
 df$status_code <- as.factor(df$status_code)
@@ -100,17 +116,61 @@ str(df)
 ```
 
 ```{r}
-#Training Data Set
-df <- df[-1]
+new_df$sex <- as.factor(new_df$sex)
+new_df$cellphone <- as.factor(new_df$cellphone)
+new_df$streetcity <- as.factor(new_df$streetcity)
+new_df$streetzip <- as.factor(new_df$streetzip)
+new_df$County <- as.factor(new_df$County)
+new_df$income_source <- as.factor(new_df$income_source)
+new_df$employer <- as.factor(new_df$employer)
+new_df$referenceperson <- as.factor(new_df$referenceperson)
+new_df$incomelevel <- as.factor(new_df$incomelevel)
+new_df$carsinhh <- as.factor(new_df$carsinhh)
 
-train <- df[1:130,]
-train %>% View
+new_df$status_code <- as.factor(new_df$status_code)
+new_df$purpose <- as.factor(new_df$purpose)
+
+#Dropping the 'active' Factor
+new_df$status_code <- droplevels(new_df$status_code)
+new_df$incomelevel <- droplevels(new_df$incomelevel)
+str(new_df)
 ```
+
+```{r}
+#Validation Data Set
+val <- df[1:9, ]
+val %>% View
+
+#Training Data Set
+train <- df[10:130,]
+train %>% View
+
+#Testing Data Set
+test <- df[131:nrow(df),]
+test %>% View
+```
+
+```{r}
+#Validation Data Set
+nval <- new_df[1:9, ]
+nval %>% View
+
+#Training Data Set
+ntrain <- new_df[10:130,]
+ntrain %>% View
+
+#Testing Data Set
+ntest <- new_df[131:nrow(new_df),]
+ntest %>% View
+```
+
 
 ```{r}
 #CLASSIFICATION Decision Tree
 #install.packages('tree')
 library(tree)
+
+#MODEL NUMBER 1 - ALL VARIABLES
 model = tree(status_code ~ ., 
              na.action = na.pass, 
              method = "class", 
@@ -143,7 +203,7 @@ table(predicted = model_pred, actual = train$status_code)
 
 ```{r}
 #Pruned Decision Tree
-prune = prune.misclass(model, best = 8)
+prune = prune.misclass(model, best = 12)
 summary(prune)
 ```
 
@@ -155,7 +215,6 @@ title(main = "Pruned Classification Tree")
 
 ```{r}
 #Testing the Decision Tree
-test <- df[130:nrow(df),]
 pred <- predict(model, test) 
 pred
 ```
@@ -176,15 +235,16 @@ plot(importance)
 ```
     
 ```{r}
-#Model After Feature Selection 
-model2 = tree(status_code ~ employer + streetzip + income_source + 
+
+#Model 2 - First Feature Selection 
+model2 = tree(status_code ~ amount_approved + employer + streetzip + income_source + 
                 incomeamt + incomelevel + purpose + referenceperson, 
-             na.action = na.omit, 
+             na.action = na.pass, 
              method = "class", 
              split = c("deviance", "gini"),
              data = train)
 summary(model2)
-save(model2,file = 'model.RData')
+#save(model2,file = 'model.RData')
 ```
 
 ```{r}
@@ -206,4 +266,82 @@ model_pred = predict(model2, train, type = "class")
 table(predicted = model_pred, actual = train$status_code)
 ```
 
+```{r}
+#Model 3 - Second Feature Selection
+model3 = tree(status_code ~ amount_approved + amountDue + employer + age + 
+                streetzip + incomeamt + income_source + sex + incomelevel + referenceperson + purpose, 
+             na.action = na.pass, 
+             method = "class", 
+             split = c("deviance", "gini"),
+             data = train)
+summary(model3)
+
+model_pred = predict(model3, train, type = "class")
+table(predicted = model_pred, actual = train$status_code)
+```
+```{r}
+#Model 4 - Charged Off Feature Selection
+model4 = tree(status_code ~ amount_approved + amountDue + age + 
+                streetzip + employer + income_source + referenceperson, 
+             na.action = na.pass, 
+             method = "class", 
+             split = c("deviance", "gini"),
+             data = train)
+summary(model4)
+
+model_pred = predict(model4, train, type = "class")
+table(predicted = model_pred, actual = train$status_code)
+```
+
+```{r}
+#Model 5 - Paid in Full Feature Selection
+model5 = tree(status_code ~ amount_approved + amountDue + employer + streetzip + age,
+             na.action = na.pass, 
+             method = "class", 
+             split = c("deviance", "gini"),
+             data = train)
+summary(model5)
+
+model_pred = predict(model5, train, type = "class")
+table(predicted = model_pred, actual = train$status_code)
+```
+```{r}
+#Model 6 - Paid in Full Feature Selection
+model6 = tree(status_code ~ employer + amount_approved + streetzip + incomeamt,
+             na.action = na.pass, 
+             method = "class", 
+             split = c("deviance", "gini"),
+             data = train)
+summary(model6)
+
+model_pred = predict(model6, train, type = "class")
+table(predicted = model_pred, actual = train$status_code)
+```
+
+```{r}
+#Model 7 - Adjusted PIF and Refinanced
+model7 = tree(status_code ~ ., 
+             na.action = na.pass, 
+             method = "class", 
+             split = c("deviance", "gini"),
+             data = ntrain)
+summary(model7)
+
+model_pred = predict(model7, ntrain, type = "class")
+table(predicted = model_pred, actual = ntrain$status_code)
+```
+```{r}
+#Feature Selection
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+model <- train(status_code~., 
+               data=ntrain, 
+               method="lvq", 
+               preProcess="scale", 
+               trControl=control, 
+               na.action = na.omit)
+
+importance <- varImp(model, scale=FALSE)
+print(importance)
+plot(importance)
+```
 
