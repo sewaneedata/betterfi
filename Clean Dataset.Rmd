@@ -1,6 +1,6 @@
 ---
 title: "Clean Dataset"
-author: "Tilina Alzaben"
+author: "Tilina Sux"
 date: '2022-07-06'
 output: html_document
 ---
@@ -14,9 +14,9 @@ library(lubridate)
 
 ```{r}
 #Read in the Client and Loan Data
-client <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-clientdata-anon.csv")
-loan <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-loandata-anon.csv")
-loan2 <- read_csv("C:/Users/tilin/Downloads/LOAN-DATA-070122.csv")
+client <- read_csv("/Users/user/Desktop/DataLab/BetterFi New Data/new_client.csv")
+loan <- read_csv("/Users/user/Desktop/DataLab/BetterFi Data/Loan Data.csv")
+loan2 <- read_csv("/Users/user/Desktop/DataLab/BetterFi New Data/new_loan.csv")
 ```
 
 ```{r}
@@ -32,46 +32,153 @@ clientClean <- client %>%
                                incomefreq == 'WE' ~ incomeamt * 4)) %>% 
   mutate(residenceyear= floor(as.numeric(residenceperiod)/12)) %>% 
   mutate(carsinhh = ifelse(is.na(carsinhh), 0, carsinhh)) %>% 
-  mutate(residencetype = ifelse(is.na(residencetype), 'UNKNOWN', client$residencetype)) %>% 
+  mutate(monthlyincome= ifelse(clientClean$incomefreq %in% c("BI","biwk"), clientClean$incomeamt*2,
+                                ifelse(clientClean$incomefreq%in% c("WE", "wk"), clientClean$incomeamt*4,
+                                       clientClean$incomeamt))) %>% 
+  
   select(custID,
          sex, 
-         age, 
-         cellphone, 
+         age,
+         ethnicity,
+         cellphone,
+         licensestate,
+         County,
          streetcity, 
          streetzip,
-         income_source, 
-         employer,
-         incomeamt,
-         referenceperson,
-         carsinhh,
          residenceyear,
-         annualincome,
-         County,
-         incomelevel)
-clientClean %>% View
+         employer,
+         income_source,
+         incomeamt,
+         incomefreq,
+         monthlyincome,
+         bankaccount,
+         housingexpense, 
+         phoneplanexpense, 
+         elecexpense,
+         utilitystatus,
+         carsinhh,
+         carinsexpense,
+         denied,
+         bankruptcy,
+         WHO,
+         referenceperson,
+         ogborrower)
+
+
+
+    # If residence year NA, assume average residence year
+clientClean$residenceyear[is.na(clientClean$residenceyear)]<-(mean(clientClean$residenceyear, na.rm=TRUE))
+clientClean <- clientClean %>% mutate(residenceyear = floor(residenceyear))
+
+# If licensestate NA, assume TN
+clientClean<-clientClean %>% 
+  mutate(licensestate = ifelse(is.na(licensestate), "TN",
+                               clientClean$licensestate))
+
+# If employer NA, they are Unemployed
+clientClean<-clientClean %>% 
+  mutate(employer = ifelse(is.na(employer), "Unemployed",
+                           clientClean$employer))
+
+
+# If incomefreq biwk, Bi, if mo, MO
+clientClean<-clientClean %>% 
+  mutate(incomefreq= ifelse(incomefreq== "biwk", "BI",
+                            ifelse(incomefreq== "mo", "MO",
+                                   incomefreq)))
+
+
+# If housingexpense NA, take average
+clientClean$housingexpense[is.na(clientClean$housingexpense)]<-(mean(clientClean$housingexpense, na.rm=TRUE))  
+clientClean <- clientClean %>% mutate(housingexpense = floor(housingexpense))
+
+
+# If phoneplanexpense NA, take average
+clientClean$phoneplanexpense[is.na(clientClean$phoneplanexpense)]<-(mean(clientClean$phoneplanexpense, na.rm=TRUE))  
+clientClean <- clientClean %>% mutate(phoneplanexpense = floor(phoneplanexpense))
+
+
+
+
+# if elecexpenxe NA, take average
+clientClean$elecexpense[is.na(clientClean$elecexpense)]<-(mean(clientClean$elecexpense, na.rm=TRUE)) 
+clientClean <- clientClean %>% mutate(elecexpense = floor(elecexpense))
+
+
+
+
+# If carsinhh NA, assume 0
+clientClean<-clientClean %>% 
+  mutate(carsinhh= ifelse(is.na(carsinhh), 0,
+                          carsinhh))
+
+
+
+
+# if carsinhh is 0 then carinsexpense 0
+clientClean<- clientClean %>% 
+  mutate(carinsexpense= ifelse(carsinhh== 0, 0, carinsexpense))
+
+# if carinsexpense NA, take average
+clientClean$carinsexpense[is.na(clientClean$carinsexpense)]<-(mean(clientClean$carinsexpense, na.rm=TRUE)) 
+clientClean <- clientClean %>% mutate(carinsexpense = floor(carinsexpense))
+
+
+# Manually filling missing value for County
+clientClean<-clientClean %>% 
+  mutate(County= ifelse(streetzip== 02128, "Suffolk", County))
+
+# if ogborrower is NA, none
+clientClean<- clientClean %>% 
+  mutate(ogborrower= ifelse(is.na(ogborrower), "None",
+                            ogborrower) )
+
+
+# if denied is NA, Loan accepted
+clientClean<- clientClean %>% 
+  mutate(denied= ifelse(is.na(denied), "Loan Accepted",
+                            denied) )
+
 ```
 
 ```{r}
 #Cleaning Loan Data
-loanClean <- loan %>% 
-  mutate(status_code = ifelse(is.na(status_code), "active", loan$status_code)) %>% 
-  select(primary_borrower_name, status_code, purpose, amount_approved, full_identifier)
+loan1Clean <- loan %>% 
+#  mutate(status_code = ifelse(is.na(status_code), "active", loan$status_code)) %>% 
+  select(primary_borrower_name, full_identifier, purpose) 
+  #mutate(primary_borrower_name= tolower(primary_borrower_name))
 
 loan2Clean <- loan2 %>% 
   mutate(pop = ifelse(primary_person_population_classification == "non_urban", 'rural', primary_person_population_classification)) %>% 
-  select(payment_periods, pop, primary_borrower_name, loan_identifier)
+  select(primary_person_population_classification,
+         status_code, 
+         amount_approved, 
+         max_delinquency_period,
+         number_of_missed_days,
+         delinquency_total,
+         line_of_credit,
+         first_payment_due_date,
+         maturity_date,
+         status_date,
+         payment_periods, 
+         pop, 
+         risk_rating,
+         reserve_percentage,
+         reserve_amount,
+         loan_identifier)
 
-loanData <- merge(loanClean, loan2Clean, by.x = 'full_identifier', by.y = 'loan_identifier')
-loanData <- loanData[-8]
-loanData %>% View
+loanData <- merge(loan1Clean, loan2Clean, by.x = 'full_identifier', by.y = 'loan_identifier') %>% 
+  unique()
+#loanData <- loanData[-8]
+#loanData %>% View
 ```
 
 ```{r}
 #Creating One Data set
-df <- merge(clientClean, loanData, by.x = 'custID', by.y = 'primary_borrower_name.x')
-df <- df[df$status_code != 'active' & df$incomelevel != '#N/A',] 
-df <- df[-c(1, 16)]
+df <- merge(clientClean, loanData, by.x = 'custID', by.y = 'primary_borrower_name')
+#df <- df[df$status_code != 'active' & df$incomelevel != '#N/A',] 
+#df <- df[-c(1, 16)]
 
-df %>% View
+#df %>% View
 ```
 
