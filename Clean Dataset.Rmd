@@ -1,0 +1,77 @@
+---
+title: "Clean Dataset"
+author: "Tilina Alzaben"
+date: '2022-07-06'
+output: html_document
+---
+
+```{r}
+#IMPORT LIBRARIES
+library(readr)
+library(dplyr)
+library(lubridate)
+```
+
+```{r}
+#Read in the Client and Loan Data
+client <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-clientdata-anon.csv")
+loan <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-loandata-anon.csv")
+loan2 <- read_csv("C:/Users/tilin/Downloads/LOAN-DATA-070122.csv")
+```
+
+```{r}
+#Cleaning Client Data
+clientClean <- client %>% 
+  mutate(age = year(Sys.Date()) - dob) %>%
+  mutate(streetcity = case_when(streetcity == 'Traciy City' | streetcity == 'TRACY CITY' ~ 'Tracy City', 
+                                streetcity == 'TULLAHOMA' ~ 'Tullahoma',
+                                TRUE ~ streetcity)) %>%  
+  mutate(employer = ifelse(is.na(employer), "UNEMPLOYED", client$employer)) %>% 
+  mutate(incomeamt = case_when(incomefreq == 'MO' || incomefreq == 'mo' ~ incomeamt, 
+                               incomefreq == 'biwk' || incomefreq == 'BI' ~ incomeamt * 2, 
+                               incomefreq == 'WE' ~ incomeamt * 4)) %>% 
+  mutate(residenceyear= floor(as.numeric(residenceperiod)/12)) %>% 
+  mutate(carsinhh = ifelse(is.na(carsinhh), 0, carsinhh)) %>% 
+  mutate(residencetype = ifelse(is.na(residencetype), 'UNKNOWN', client$residencetype)) %>% 
+  select(custID,
+         sex, 
+         age, 
+         cellphone, 
+         streetcity, 
+         streetzip,
+         income_source, 
+         employer,
+         incomeamt,
+         referenceperson,
+         carsinhh,
+         residenceyear,
+         annualincome,
+         County,
+         incomelevel)
+clientClean %>% View
+```
+
+```{r}
+#Cleaning Loan Data
+loanClean <- loan %>% 
+  mutate(status_code = ifelse(is.na(status_code), "active", loan$status_code)) %>% 
+  select(primary_borrower_name, status_code, purpose, amount_approved, full_identifier)
+
+loan2Clean <- loan2 %>% 
+  mutate(pop = ifelse(primary_person_population_classification == "non_urban", 'rural', primary_person_population_classification)) %>% 
+  select(payment_periods, pop, primary_borrower_name, loan_identifier)
+
+loanData <- merge(loanClean, loan2Clean, by.x = 'full_identifier', by.y = 'loan_identifier')
+loanData <- loanData[-8]
+loanData %>% View
+```
+
+```{r}
+#Creating One Data set
+df <- merge(clientClean, loanData, by.x = 'custID', by.y = 'primary_borrower_name.x')
+df <- df[df$status_code != 'active' & df$incomelevel != '#N/A',] 
+df <- df[-c(1, 16)]
+
+df %>% View
+```
+
