@@ -28,7 +28,7 @@ loanClean <- loan %>%
 df <- merge(clientClean, loanClean, by.x = 'custID', by.y = 'primary_borrower_name')
 
 #Predictive Model
-load('../model.RData')
+load('model.RData')
 
 ################################################################################
 ## SHINY DASHBOARD
@@ -137,10 +137,10 @@ server <- function(input, output) {
   observeEvent(input$submit, {
     rv$df <- data.frame()
     rv$predict <- data.frame()
-    new_data <- c(input$incomelevel, input$amount, input$employer, input$streetzip, input$incomesource, 
-                  input$incomeamt, input$purpose, input$referenceperson)
-    new_data <- paste(new_data, collapse = ',')
-    new_data <- paste0(new_data, '\n')
+    #new_data <- c(input$incomelevel, input$amount, input$employer, input$streetzip, input$incomesource, 
+    #              input$incomeamt, input$purpose, input$referenceperson)
+    #new_data <- paste(new_data, collapse = ',')
+    #new_data <- paste0(new_data, '\n')
     
     #Data Frame with Applicant Data
     rv$df <- data.frame(incomelevel = input$incomelevel,
@@ -152,8 +152,17 @@ server <- function(input, output) {
                         purpose = input$purpose, 
                         referenceperson = input$referenceperson)
     
-    customerData <- rv$df
+    customerData <- data.frame(incomelevel = 'HIGH',
+                        amount_approved = 200,
+                        employer = 'BANK', 
+                        streetzip = 37375, 
+                        income_source = 'DI', 
+                        incomeamt = 10000, 
+                        purpose = 'busi', 
+                        referenceperson = 'BANK')
     
+    customerData <- rv$df
+    #print(customerData)
     #Run Data into the Model
     if(nrow(customerData)>0){
       customerData$employer <- as.factor(customerData$employer)
@@ -163,15 +172,17 @@ server <- function(input, output) {
       customerData$referenceperson <- as.factor(customerData$referenceperson)
       customerData$incomelevel <- as.factor(customerData$incomelevel)
       
-      pred <- predict(model2, customerData)
-      rv$predict <- pred
+      (pred <- predict(model2, customerData))
+     rv$predict <- pred
       
-      print(customerData)
+      #print(customerData)
+      print(pred)
       print(rv$predict)
     }
     
     #Probability of Charged Off
     output$chargedOff <- renderInfoBox({
+      print(rv$predict)
       infoBox(
         "Charged Off", paste0(round(rv$predict[,1]*100, 2), "%"), color = "red"
       )
