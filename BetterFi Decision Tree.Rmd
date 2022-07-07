@@ -1,5 +1,5 @@
 ---
-title: "BetterFi"
+title: "Decision Tree - 3 Categories"
 author: "Tilina Alzaben"
 date: '2022-06-21'
 output:
@@ -7,6 +7,21 @@ output:
   html_document: default
   pdf_document: default
 ---
+
+```{r}
+set.seed(42)
+```
+
+```{r}
+# install.packages('readr')
+# install.packages('ggplot2')
+# install.packages('dplyr')
+# install.packages('knitr')
+# install.packages('lubridate')
+# install.packages('tree')
+# install.packages('caret')
+```
+
 
 ```{r, echo = FALSE}
 #IMPORT LIBRARIES
@@ -28,7 +43,6 @@ loan2 <- read_csv("C:/Users/tilin/Downloads/LOAN-DATA-070122.csv")
 ```{r}
 #Cleaning Client Data
 clientClean <- client %>% 
-  mutate(age = year(Sys.Date()) - dob) %>%
   mutate(streetcity = case_when(streetcity == 'Traciy City' | streetcity == 'TRACY CITY' ~ 'Tracy City', 
                                 streetcity == 'TULLAHOMA' ~ 'Tullahoma',
                                 TRUE ~ streetcity)) %>%  
@@ -38,22 +52,22 @@ clientClean <- client %>%
                                incomefreq == 'WE' ~ incomeamt * 4)) %>% 
   mutate(residenceyear= floor(as.numeric(residenceperiod)/12)) %>% 
   mutate(carsinhh = ifelse(is.na(carsinhh), 0, carsinhh)) %>% 
-  mutate(residencetype = ifelse(is.na(residencetype), 'UNKNOWN', client$residencetype)) %>% 
+  mutate(County = ifelse(is.na(County), 'Suffolk County', client$County)) %>%
+  mutate(totalExpense = rowSums(client[,c(54, 55, 56, 57, 59)], na.rm = TRUE)) %>% 
   select(custID,
-         sex, 
-         age, 
          cellphone, 
          streetcity, 
-         streetzip,
+         streetzip, 
+         County, 
          income_source, 
          employer,
-         incomeamt,
-         referenceperson,
-         carsinhh,
-         residenceyear,
-         annualincome,
-         County,
-         incomelevel)
+         incomeamt, 
+         annualincome, 
+         incomelevel, 
+         totalExpense, 
+         carsinhh, 
+         residenceyear, 
+         referenceperson)
 clientClean %>% View
 ```
 
@@ -64,216 +78,215 @@ loanClean <- loan %>%
   select(primary_borrower_name, status_code, purpose, amount_approved, full_identifier)
 
 loan2Clean <- loan2 %>% 
-  mutate(primary_person_population_classification = ifelse(primary_person_population_classification == "non_urban", 'rural', primary_person_population_classification)) %>% 
-  select(total_disbursements, payment_periods, primary_person_population_classification, primary_borrower_name, loan_identifier)
+  select(payment_periods, primary_borrower_name, loan_identifier) %>% 
+  mutate(payment_periods = gsub("mo","", as.character(payment_periods))) 
 
-loanData <- merge(loanClean, loan2Clean, by.x = 'full_identifier', by.y = 'loan_identifier')
+loanData <- merge(loanClean, loan2Clean, by.x = 'full_identifier', by.y = 'loan_identifier') %>% 
+  mutate(monthlyPayment = round(amount_approved/as.numeric(payment_periods), 2))
 
+loanData <- loanData[-7]
 loanData %>% View
 ```
 
 ```{r}
 #Creating One Data set
 df <- merge(clientClean, loanData, by.x = 'custID', by.y = 'primary_borrower_name.x')
-df <- df[-c(23,16)]
-df %>% View
-
-df <- df[df$status_code != 'active',]
-df <- df[df$incomelevel != '#N/A',]
+df <- df[df$status_code != 'active',] 
+df <- df[-c(1, 15)]
 df %>% View
 ```
 
 ```{r}
 #Turning Categorical Variables into Factors
-df$sex <- as.factor(df$sex)
-df$cellphone <- as.factor(df$cellphone)
-df$streetcity <- as.factor(df$streetcity)
-df$streetzip <- as.factor(df$streetzip)
-df$County <- as.factor(df$County)
-df$income_source <- as.factor(df$income_source)
-df$employer <- as.factor(df$employer)
-df$referenceperson <- as.factor(df$referenceperson)
-df$incomelevel <- as.factor(df$incomelevel)
-df$carsinhh <- as.factor(df$carsinhh)
-df$payment_periods <- as.factor(df$payment_periods)
-df$primary_person_population_classification <- as.factor(df$primary_person_population_classification)
+cat <- c('cellphone', 'streetcity', 'streetzip', 'County', 'income_source', 'employer', 'referenceperson', 'incomelevel', 
+         'carsinhh', 'payment_periods', 'status_code', 'purpose', 'residenceyear')
 
-df$status_code <- as.factor(df$status_code)
-df$purpose <- as.factor(df$purpose)
-
-#Dropping the 'active' Factor
-df$status_code <- droplevels(df$status_code)
-df$incomelevel <- droplevels(df$incomelevel)
+for(x in cat) {
+    df[, x] <- as.factor(df[, x])
+}
 str(df)
 ```
 
 ```{r}
-#Validation Data Set
-val <- df[1:9, ]
-val %>% View
-
-#Training Data Set
-train <- df[10:130,]
-train %>% View
-
-#Testing Data Set
+#Training/Testing/Validation Datasets
+train <- df[1:130,]
 test <- df[131:nrow(df),]
-test %>% View
-```
-
-```{r}
-#CLASSIFICATION Decision Tree
-#install.packages('tree')
-
-#MODEL NUMBER 1 - ALL VARIABLES
-model = tree(status_code ~ ., 
-             na.action = na.pass, 
-             method = "class", 
-             split = c("deviance", "gini"),
-             data = train)
-summary(model)
-```
-
-```{r}
-#Variables Used in Decision Tree
-summary(model)$used
-```
-
-```{r}
-#Variables Not Used in Decision Tree
-names(train)[which(!(names(train) %in% summary(model)$used))]
-```
-
-```{r}
-#Plotting the Decision Tree
-plot(model)
-text(model)
-```
-
-```{r}
-#Confusion Matrix
-model_pred = predict(model, train, type = "class")
-table(predicted = model_pred, actual = train$status_code)
-
-#MODEL 1 ACCURACY: 97/121 = 80%
-```
-
-```{r}
-#Pruned Decision Tree
-prune = prune.misclass(model, best = 8)
-summary(prune)
-```
-
-```{r}
-plot(prune)
-text(prune, pretty = 0)
-title(main = "Pruned Classification Tree")
-```
-
-```{r}
-#Testing the Decision Tree
-pred <- predict(model, test) 
-pred
 ```
 
 ```{r}
 #Feature Selection
 control <- trainControl(method="repeatedcv", number=10, repeats=3)
-model <- train(status_code~., 
-               data=train, 
-               method="lvq", 
-               preProcess="scale", 
-               trControl=control, 
+model <- train(status_code~.,
+               data=train,
+               method="lvq",
+               preProcess="scale",
+               trControl=control,
                na.action = na.omit)
 
 importance <- varImp(model, scale=FALSE)
 print(importance)
 plot(importance)
 ```
-    
+
 ```{r}
-#Model 2 - First Feature Selection 
-model2 = tree(status_code ~ amount_approved + employer + streetzip + 
-    incomeamt + incomelevel + purpose + referenceperson, 
+#CLASSIFICATION Decision Tree
+
+#MODEL NUMBER 1 - ALL VARIABLES
+model0 = tree(status_code ~ ., 
              na.action = na.pass, 
              method = "class", 
              split = c("deviance", "gini"),
              data = train)
-summary(model2)
-save(model2,file = 'model.RData')
+summary(model0)
+```
+
+```{r}
+#Variables Used in Decision Tree
+summary(model0)$used
+
+#Variables Not Used in Decision Tree
+names(train)[which(!(names(train) %in% summary(model0)$used))]
 ```
 
 ```{r}
 #Plotting the Decision Tree
-plot(model2)
-text(model2)
+plot(model0)
+text(model0)
 ```
+
+```{r}
+#Confusion Matrix
+#BASE MODEL ACCURACY: 85%
+model0_pred = predict(model0, train, type = "class")
+table(predicted = model0_pred, actual = train$status_code)
+
+#Testing the Decision Tree
+pred <- predict(model0, test) 
+pred
+```
+
 ```{r}
 #Pruned Decision Tree
-prune2 = prune.misclass(model2, best = 6)
-summary(prune2)
+prune0 = prune.misclass(model0, best = 8)
+summary(prune0)
 
-plot(prune2)
-text(prune2, pretty = 0)
+plot(prune0)
+text(prune0, pretty = 0)
 title(main = "Pruned Classification Tree")
 ```
+    
 ```{r}
-model_pred = predict(model2, train, type = "class")
-table(predicted = model_pred, actual = train$status_code)
-```
+#Model 1 - 82% ACCURACY
+model1 = tree(status_code ~ amount_approved + employer + streetzip + incomeamt + incomelevel + purpose + referenceperson, 
+             na.action = na.pass, 
+             method = "class", 
+             split = c("deviance", "gini"),
+             data = train)
+summary(model1)
 
+model1_pred = predict(model1, train, type = "class")
+table(predicted = model1_pred, actual = train$status_code)
+# save(model2,file = 'model.RData')
+```
 ```{r}
-#Model 3 - Second Feature Selection
-model3 = tree(status_code ~ amount_approved +  employer + age + 
-                streetzip + incomeamt + income_source + sex + incomelevel + referenceperson + purpose, 
+#Model 3 - 85% ACCURACY
+model3 = tree(status_code ~ amount_approved + streetzip + employer + income_source + referenceperson, 
              na.action = na.pass, 
              method = "class", 
              split = c("deviance", "gini"),
              data = train)
 summary(model3)
 
-model_pred = predict(model3, train, type = "class")
-table(predicted = model_pred, actual = train$status_code)
+model3_pred = predict(model3, train, type = "class")
+table(predicted = model3_pred, actual = train$status_code)
 ```
+
+
 ```{r}
-#Model 4 - Charged Off Feature Selection
-model4 = tree(status_code ~ amount_approved + 
-                streetzip + employer + income_source + referenceperson, 
+#Model 4 - 82% ACCURACY
+model4 = tree(status_code ~ employer + amount_approved + streetzip + incomeamt,
              na.action = na.pass, 
              method = "class", 
              split = c("deviance", "gini"),
              data = train)
 summary(model4)
 
-model_pred = predict(model4, train, type = "class")
-table(predicted = model_pred, actual = train$status_code)
+model4_pred = predict(model4, train, type = "class")
+table(predicted = model4_pred, actual = train$status_code)
 ```
 
 ```{r}
-#Model 5 - Paid in Full Feature Selection
-model5 = tree(status_code ~ amount_approved +  employer + streetzip,
+#Model 5 - 81% ACCURACY
+model5 = tree(status_code ~ amount_approved +  employer + annualincome + referenceperson + streetzip + income_source + purpose,
              na.action = na.pass, 
              method = "class", 
              split = c("deviance", "gini"),
              data = train)
 summary(model5)
 
-model_pred = predict(model5, train, type = "class")
-table(predicted = model_pred, actual = train$status_code)
+model5_pred = predict(model5, train, type = "class")
+table(predicted = model5_pred, actual = train$status_code)
 ```
 ```{r}
-#Model 6 - Paid in Full Feature Selection
-model6 = tree(status_code ~ employer + amount_approved + streetzip + incomeamt,
+#Model 6 - 86% ACCURACY
+model6 = tree(status_code ~ amount_approved + employer + annualincome + referenceperson + streetzip,
              na.action = na.pass, 
              method = "class", 
              split = c("deviance", "gini"),
              data = train)
 summary(model6)
 
-model_pred = predict(model6, train, type = "class")
-table(predicted = model_pred, actual = train$status_code)
+model6_pred = predict(model6, train, type = "class")
+table(predicted = model6_pred, actual = train$status_code)
 ```
+```{r}
+#Model 7 - 82% ACCURACY
+model7 = tree(status_code ~ amount_approved + employer + annualincome + referenceperson + streetzip + purpose + income_source + carsinhh,
+             na.action = na.pass, 
+             method = "class", 
+             split = c("deviance", "gini"),
+             data = train)
+summary(model7)
 
+model7_pred = predict(model7, train, type = "class")
+table(predicted = model7_pred, actual = train$status_code)
+```
+```{r}
+#Model 8 - 81% ACCURACY
+model8 = tree(status_code ~ employer + annualincome + referenceperson + streetzip + purpose + income_source,
+             na.action = na.pass, 
+             method = "class", 
+             split = c("deviance", "gini"),
+             data = train)
+summary(model8)
+
+model8_pred = predict(model8, train, type = "class")
+table(predicted = model8_pred, actual = train$status_code)
+```
+```{r}
+#Model 9 - 81% ACCURACY
+model9 = tree(status_code ~ streetcity + incomelevel + purpose + streetzip + incomeamt,
+             na.action = na.pass, 
+             method = "class", 
+             split = c("deviance", "gini"),
+             data = train)
+summary(model9)
+
+model9_pred = predict(model9, train, type = "class")
+table(predicted = model9_pred, actual = train$status_code)
+```
+```{r}
+#Model 10 - 84% ACCURACY
+model10 = tree(status_code ~ amount_approved + employer + annualincome + streetzip + referenceperson + income_source,
+             na.action = na.pass, 
+             method = "class", 
+             split = c("deviance", "gini"),
+             data = train)
+summary(model10)
+
+model10_pred = predict(model10, train, type = "class")
+table(predicted = model10_pred, actual = train$status_code)
+```
 
 
 
