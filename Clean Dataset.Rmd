@@ -1,6 +1,6 @@
 ---
 title: "Clean Dataset"
-author: "Tilina Sux"
+author: "BetterFi"
 date: '2022-07-06'
 output: html_document
 ---
@@ -126,7 +126,7 @@ clientClean <- clientClean %>% mutate(carinsexpense = floor(carinsexpense))
 
 # Manually filling missing value for County
 clientClean<-clientClean %>% 
-  mutate(County= ifelse(streetzip== 02128, "Suffolk", County))
+  mutate(County= ifelse(streetzip== "02128", "Suffolk", County))
 
 # if ogborrower is NA, none
 clientClean<- clientClean %>% 
@@ -167,7 +167,7 @@ loan2Clean <- loan2 %>%
          reserve_amount,
          loan_identifier)
 
-loanData <- merge(loan1Clean, loan2Clean, by.x = 'full_identifier', by.y = 'loan_identifier') %>% 
+loanClean <- merge(loan1Clean, loan2Clean, by.x = 'full_identifier', by.y = 'loan_identifier') %>% 
   unique()
 #loanData <- loanData[-8]
 #loanData %>% View
@@ -175,7 +175,7 @@ loanData <- merge(loan1Clean, loan2Clean, by.x = 'full_identifier', by.y = 'loan
 
 ```{r}
 #Creating One Data set
-df <- merge(clientClean, loanData, by.x = 'custID', by.y = 'primary_borrower_name')
+df <- merge(clientClean, loanClean, by.x = 'custID', by.y = 'primary_borrower_name')
 #df <- df[df$status_code != 'active' & df$incomelevel != '#N/A',] 
 #df <- df[-c(1, 16)]
 
