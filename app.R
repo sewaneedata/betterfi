@@ -32,7 +32,7 @@ clientClean <- clientClean %>%
                                ifelse(clientClean$incomefreq%in% c("WE", "wk"), clientClean$incomeamt*4,
                                       clientClean$incomeamt)))  
 
-clinetClean<- clientClean %>% 
+clientClean<- clientClean %>% 
   select(custID,
          sex, 
          age,
@@ -52,6 +52,7 @@ clinetClean<- clientClean %>%
          housingexpense, 
          phoneplanexpense, 
          elecexpense,
+         waterexpense,
          utilitystatus,
          carsinhh,
          carinsexpense,
@@ -138,6 +139,35 @@ clientClean<- clientClean %>%
 
 
 
+# cleaning waterexpense
+
+clientClean<-clientClean %>% 
+  mutate(waterexpense= abs(waterexpense))
+
+
+clientClean$waterexpense[is.na(clientClean$waterexpense)]<-(mean(clientClean$waterexpense, na.rm=TRUE)) 
+clientClean <- clientClean %>% mutate(waterexpense = floor(waterexpense))
+
+
+# if utilitystatus is na, FALSE
+clientClean$utilitystatus[is.na(clientClean$utilitystatus)]<-("FALSE") 
+
+
+# total expense
+
+clientClean<- clientClean %>% 
+  mutate(totalexpense = housingexpense + phoneplanexpense + elecexpense + waterexpense + carinsexpense)
+
+
+# Cleaning Bank Account
+
+clientClean<- clientClean %>% 
+  mutate(bankaccount= ifelse(is.na(bankaccount), FALSE,
+                             ifelse(bankaccount== "Checking", TRUE,
+                                    bankaccount)))
+
+
+
 ############## Cleaning Loan Data ##############
 
 loan1Clean <- loan %>% 
@@ -146,28 +176,27 @@ loan1Clean <- loan %>%
 #mutate(primary_borrower_name= tolower(primary_borrower_name))
 
 loan2Clean <- loan2 %>% 
-  mutate(pop = ifelse(primary_person_population_classification == "non_urban", 'rural', primary_person_population_classification)) %>% 
+  mutate(pop = ifelse(primary_person_population_classification == "non_urban", 'rural', primary_person_population_classification)) %>%
+  mutate(status=status_code) %>% 
   select(primary_person_population_classification,
-         status_code, 
+         status, 
          amount_approved, 
-         max_delinquency_period,
-         number_of_missed_days,
-         delinquency_total,
-         line_of_credit,
          first_payment_due_date,
          maturity_date,
          status_date,
          payment_periods, 
-         pop, 
-         risk_rating,
-         reserve_percentage,
-         reserve_amount,
+         pop,
          loan_identifier)
 
 loanClean <- merge(loan1Clean, loan2Clean, by.x = 'full_identifier', by.y = 'loan_identifier') %>% 
   unique()
 
+loanClean<- loanClean %>% 
+  filter(status!= "active")
 
+loanClean<- loanClean %>% 
+  mutate(status= ifelse(status== "charged_off", FALSE,
+                        TRUE))
 
 
 ######## Creating One Data set #######
@@ -177,7 +206,6 @@ df <- merge(clientClean, loanClean, by.x = 'custID', by.y = 'primary_borrower_na
 #Predictive Model
 load('model.RData')
 =======
-
 
 
 
@@ -219,6 +247,9 @@ ui <- dashboardPage(
                menuItem('Demographics',
                         tabName = 'demographics',
                         icon = icon("bar-chart"),
+                        menuItem('Application Method', 
+                                 tabName = 'WHO',
+                                 icon= icon('bar-chart')),
                         menuItem('Customer ID', 
                                  tabName = 'custID',
                                  icon= icon('bar-chart')),
@@ -227,6 +258,9 @@ ui <- dashboardPage(
                                  icon= icon('bar-chart')),
                         menuItem('Sex', 
                                  tabName = 'sex',
+                                 icon= icon('bar-chart')),
+                        menuItem('Ethnicity', 
+                                 tabName = 'ethnicity',
                                  icon= icon('bar-chart')),
                         menuItem('State', 
                                  tabName = 'state',
@@ -274,7 +308,10 @@ ui <- dashboardPage(
                                  icon= icon('bar-chart')),
                         menuItem('Reference Person', 
                                  tabName = 'referenceperson',
-                                 icon= icon('bar-chart'))
+                                 icon= icon('bar-chart')),
+                        menuItem('Loan Denied',
+                                 tabName= 'denied',
+                                 icon=icon('bar-chart'))
                )
                
       )
@@ -357,6 +394,12 @@ ui <- dashboardPage(
       
       #### Demographics ####
       
+      # WHO
+      tabItem(tabName = "WHO", 
+              plotOutput("whobarplot")
+      ),
+      
+      # custID
       tabItem(tabName = "custID",
               selectInput(inputId = "demo",
                           label= 'Select:',
@@ -366,38 +409,28 @@ ui <- dashboardPage(
       
       # age
       tabItem(tabName = "age",
-              selectInput(inputId = "demo",
-                          label= 'Select:',
-                          choices = c("hello", "bye"))
+              plotOutput("agebarplot")
       ),
       
       
       # sex
       tabItem(tabName = "sex",
-              selectInput(inputId = "demo",
-                          label= 'Select:',
-                          choices = c("hello", "bye"))
+              plotOutput("sexbarplot")
       ),
       
       # state
       tabItem(tabName = "state",
-              selectInput(inputId = "demo",
-                          label= 'Select:',
-                          choices = c("hello", "bye"))
+              plotOutput("statebarplot")
       ),
       
       # county
       tabItem(tabName = "county",
-              selectInput(inputId = "demo",
-                          label= 'Select:',
-                          choices = c("hello", "bye"))
+              plotOutput("countybarplot")
       ),
       
       # city
       tabItem(tabName = "city",
-              selectInput(inputId = "demo",
-                          label= 'Select:',
-                          choices = c("hello", "bye"))
+              plotOutput("citybarplot")
       ),
       
       # zip
@@ -420,30 +453,22 @@ ui <- dashboardPage(
       
       # employer
       tabItem(tabName = "employer",
-              selectInput(inputId = "demo",
-                          label= 'Select:',
-                          choices = c("hello", "bye"))
+              plotOutput('employerbarplot')
       ),
       
       # monthlyincome
       tabItem(tabName = "monthlyincome",
-              selectInput(inputId = "demo",
-                          label= 'Select:',
-                          choices = c("hello", "bye"))
+              plotOutput("incomebarplot")
       ),
       
       # incomefreq
       tabItem(tabName = "incomefreq",
-              selectInput(inputId = "demo",
-                          label= 'Select:',
-                          choices = c("hello", "bye"))
+              plotOutput("incomefreqbarplot")
       ),
       
       # carsinhh
       tabItem(tabName = "carsinhh",
-              selectInput(inputId = "demo",
-                          label= 'Select:',
-                          choices = c("hello", "bye"))
+              plotOutput("carsinhhbarplot")
       ),
       
       # expenses
@@ -458,20 +483,18 @@ ui <- dashboardPage(
       
       # amount_approved
       tabItem(tabName = "amount_approved",
-              selectInput(inputId = "demo",
-                          label= 'Select:',
-                          choices = c("hello", "bye"))
+              plotOutput("loanamountbarplot")
       ),
       
       # purpose
       tabItem(tabName = "purpose",
-              selectInput(inputId = "demo",
-                          label= 'Select:',
-                          choices = c("hello", "bye"))
+              plotOutput("purposebarplot")
       ),
       
       # referenceperson
       tabItem(tabName = "referenceperson",
+              plotOutput("referencebarplot"),
+              plotOutput("ogborrowerbarplot"),
               selectInput(inputId = "demo",
                           label= 'Select:',
                           choices = c("hello", "bye"))
@@ -561,8 +584,278 @@ server <- function(input, output) {
     })
   })
   
+  #######################################################
+  
+  #Bar Chart Showing WHO
+  
+  output$whobarplot<- renderPlot({
+    
+    whomodel1<- clientClean %>% 
+      group_by(WHO) %>% 
+      summarise(number=n(),
+      ) %>% 
+      unique()
+    
+    ggplot(data<- whomodel1,
+           aes(x= WHO,
+               y= number,
+               fill= WHO))+
+      geom_col()
+  })
+  
+  #Bar Chart Showing age for the age submenu
+  
+  output$agebarplot<- renderPlot({
+    
+    agemodel1<- df %>% 
+      filter(age<100) %>% 
+      group_by(age, status) %>% 
+      summarise(number=n(),
+                status) %>% 
+      unique()
+    
+    ggplot(data<- agemodel1,
+           aes(x= age,
+               y= number,
+               fill= status))+
+      geom_col()
+  })
+  
+  # Bar Chart Showing sex for the submenu
+  
+  output$sexbarplot<- renderPlot({
+    
+    sexmodel1<- df %>% 
+      group_by(sex, status) %>% 
+      summarise(number=n(),
+                status) %>% 
+      unique()
+    
+    ggplot(data<- sexmodel1,
+           aes(x= sex,
+               y= number,
+               fill= status))+
+      geom_col()
+  })  
+  
+  # Bar Chart Showing state for the submenu
+  
+  output$statebarplot<- renderPlot({
+    
+    statemodel1<- df %>% 
+      group_by(licensestate, status) %>% 
+      summarise(number=n(),
+                status) %>% 
+      unique()
+    
+    ggplot(data<- statemodel1,
+           aes(x= licensestate,
+               y= number,
+               fill= status))+
+      geom_col()
+  }) 
+  
+  # Bar Chart Showing county for the submenu  
+  output$countybarplot<- renderPlot({
+    
+    countymodel1<- df %>% 
+      group_by(County, status) %>% 
+      summarise(number=n(),
+                status) %>% 
+      unique()
+    
+    ggplot(data<- countymodel1,
+           aes(x= County,
+               y= number,
+               fill= status))+
+      geom_col()
+  }) 
+  
+  # Bar Chart Showing city for the submenu
+  output$citybarplot<- renderPlot({
+    
+    citymodel1<- df %>% 
+      group_by(streetcity, status) %>% 
+      summarise(number=n(),
+                status) %>% 
+      unique()
+    
+    ggplot(data<- citymodel1,
+           aes(x= streetcity,
+               y= number,
+               fill= status))+
+      geom_col()+
+      labs(y= "Number of Loans")
+  })  
+  
+  # Bar Chart Showing employer for the submenu
+  output$employerbarplot<- renderPlot({
+    
+    employermodel1<- df %>% 
+      group_by(employer, status) %>% 
+      summarise(number=n(),
+                status) %>% 
+      unique()
+    
+    ggplot(data<- employermodel1,
+           aes(x= employer,
+               y= number,
+               fill= status))+
+      geom_col()
+    
+  })
+  
+  # Bar Chart Showing monthlyincome for the submenu
+  output$incomebarplot<- renderPlot({
+    
+    incomemodel1<- df %>% 
+      mutate(monthlyincome= ifelse(monthlyincome<1000, "<1000",
+                                   ifelse(monthlyincome>=1000 & monthlyincome<2000, "<2000",
+                                          ifelse(monthlyincome>=2000 & monthlyincome<3000, "<3000",
+                                                 ifelse(monthlyincome>=3000 & monthlyincome<4000, "<4000",
+                                                        ">4000"))))) %>% 
+      group_by(monthlyincome, status) %>% 
+      summarise(number=n(),
+                status) %>% 
+      unique()
+    
+    ggplot(data<- incomemodel1,
+           aes(x= monthlyincome,
+               y= number,
+               fill= status))+
+      geom_col()
+    
+  })
+  
+  # Bar Chart Showing incomefreq for the submenu
+  output$incomefreqbarplot<- renderPlot({
+    
+    incomefreqmodel1<- df %>% 
+      group_by(incomefreq, status) %>% 
+      summarise(number=n(),
+                status) %>% 
+      unique()
+    
+    ggplot(data<- incomefreqmodel1,
+           aes(x= incomefreq,
+               y= number,
+               fill= status))+
+      geom_col()
+  })
+  
+  # Bar Chart Showing carsinhh for the submenu
+  output$carsinhhbarplot<- renderPlot({
+    
+    carsinhhmodel1<- df %>% 
+      group_by(carsinhh, status) %>% 
+      summarise(number=n(),
+                status) %>% 
+      unique()
+    
+    ggplot(data<- carsinhhmodel1,
+           aes(x= carsinhh,
+               y= number,
+               fill= status))+
+      geom_col()
+  })
+  
+  
+  # Bar Chart Showing expenses for the submenu
+  output$totalexpensebarplot<- renderPlot({
+    
+    totalexpensemodel<- clientClean %>% 
+      mutate(monthlyincome= ifelse(monthlyincome<1000, "<1000",
+                                   ifelse(monthlyincome>=1000 & monthlyincome<2000, "<2000",
+                                          ifelse(monthlyincome>=2000 & monthlyincome<3000, "<3000",
+                                                 ifelse(monthlyincome>=3000 & monthlyincome<4000, "<4000",
+                                                        ">4000"))))) %>% 
+      group_by(monthlyincome) %>% 
+      summarise(monthlyexpense= mean(totalexpense)) %>% 
+      unique()
+    
+    ggplot(data<- totalexpensemodel,
+           aes(x= monthlyincome,
+               y= 4000,
+               fill= monthlyexpense))+
+      geom_col()+
+      scale_x_discrete(limits = c("<1000", "1000-2000", "2000-3000", "3000-4000", ">4000"))
+  })
+  
+  
+  
+  # Bar Chart Showing loanamount for the submenu
+  output$loanamountbarplot<- renderPlot({
+    
+    loanamountmodel1<- df %>% 
+      mutate(loanamount= ifelse(amount_approved<500, "<500",
+                                ifelse(amount_approved>=500 & amount_approved<1000, "500-1000",
+                                       ifelse(amount_approved>=1000 & amount_approved<2000, "1000-2000",
+                                              ifelse(amount_approved>=2000 & amount_approved<3000, "2000-3000",
+                                                     ">3000"))))) %>% 
+      group_by(loanamount, status) %>% 
+      summarise(number=n(),
+                status) %>% 
+      unique()
+    
+    ggplot(data<- loanamountmodel1,
+           aes(x= loanamount,
+               y= number,
+               fill= status))+
+      geom_col()+
+      scale_x_discrete(limits = c("<500", "500-1000", "1000-2000", "2000-3000", ">3000"))
+  })
+  
+  # Bar Chart Showing loan purpose for the submenu
+  output$purposebarplot<- renderPlot({
+    
+    purposemodel1<- df %>% 
+      group_by(purpose, status) %>% 
+      summarise(number=n(),
+                status) %>% 
+      unique()
+    
+    ggplot(data<- purposemodel1,
+           aes(x= purpose,
+               y= number,
+               fill= status))+
+      geom_col()
+  })
+  
+  # Bar Chart Showing reference person for the submenu
+  output$referencebarplot<- renderPlot({
+    
+    referencemodel1<- df %>% 
+      group_by(referenceperson, status) %>% 
+      summarise(number=n(),
+                status) %>% 
+      unique()
+    
+    ggplot(data<- referencemodel1,
+           aes(x= referenceperson,
+               y= number,
+               fill= status))+
+      geom_col()
+    
+    # Bar Chart Showing ogborrower for the submenu
+    output$ogborrowerbarplot<- renderPlot({
+      
+      ogborrowermodel1<- df %>% 
+        filter(ogborrower!= "None") %>% 
+        group_by(ogborrower, status) %>%
+        summarise(number=n(),
+                  status) %>% 
+        unique()
+      
+      ggplot(data<- ogborrowermodel1,
+             aes(x= ogborrower,
+                 y= number,
+                 fill= status))+
+        geom_col()
+    })
+  })
+  
+  
 }
 
 # Run the application 
 shinyApp(ui, server)
-
