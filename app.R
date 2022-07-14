@@ -17,10 +17,17 @@ client <- read_csv("/Users/user/Desktop/DataLab/BetterFi New Data/new_client.csv
 loan <- read_csv("/Users/user/Desktop/DataLab/BetterFi Data/Loan Data.csv")
 loan2 <- read_csv("/Users/user/Desktop/DataLab/BetterFi New Data/new_loan.csv")
 
+
 #Read in income data for county, city, zip
-#countyincome <- read_sheet('https://docs.google.com/spreadsheets/d/1_190bfKW-Ni933rcDBcbB89vYIKKd-G6StwUcNHGF88/edit#gid=0')
-#zipincome <- read_sheet('https://docs.google.com/spreadsheets/d/1_YXgrvFUQbLlRgHCAKzVLOtZE7X8XQrqTAHPkfuJ7Mg/edit#gid=0')
-#cityincome <- read_sheet('https://docs.google.com/spreadsheets/d/1mbcHz0QlaeW2rZZZR63cXCHupk08ykJ6iZPLf5l3Ydk/edit#gid=0')
+
+#countyincome <- https://docs.google.com/spreadsheets/d/1_190bfKW-Ni933rcDBcbB89vYIKKd-G6StwUcNHGF88/edit#gid=0
+#zipincome <- https://docs.google.com/spreadsheets/d/1_YXgrvFUQbLlRgHCAKzVLOtZE7X8XQrqTAHPkfuJ7Mg/edit#gid=0
+#cityincome <- https://docs.google.com/spreadsheets/d/1mbcHz0QlaeW2rZZZR63cXCHupk08ykJ6iZPLf5l3Ydk/edit#gid=0
+
+countyincome <- read_csv('/Users/user/Desktop/DataLab/BetterFi New Data/County Median Income.csv')
+zipincome <- read_csv('/Users/user/Desktop/DataLab/BetterFi New Data/Zip Median Income.csv')
+cityincome <- read_csv('/Users/user/Desktop/DataLab/BetterFi New Data/City Median Income.csv')
+
 
 ######## Cleaning Client Data #######
 clientClean <- client %>% 
@@ -216,11 +223,10 @@ loanClean <- merge(loan1Clean, loan2Clean, by.x = 'full_identifier', by.y = 'loa
   unique()
 
 loanClean<- loanClean %>% 
-  filter(status!= "active")
-
-loanClean<- loanClean %>% 
-  mutate(status= ifelse(status== "charged_off", FALSE,
-                        TRUE))
+  mutate(status= ifelse(status== "pif", "Paid in Full",
+                        ifelse(status== "pif_refinanced", "Refinanced",
+                               ifelse(status== "active", "Active",
+                                      ifelse(status== "charged_off", "Charged Off", status)))))
 
 
 
@@ -269,9 +275,6 @@ ui <- dashboardPage(
       menuItem("Data Analytics", tabName = "analysis", icon = icon("bar-chart"),
                
                #Submenu Setup
-               menuItem('Interactive Analytics', 
-                        tabName = 'interactive_analytics',
-                        icon= icon('bar-chart')),
                menuItem('Demographics',
                         tabName = 'demographics',
                         icon = icon("bar-chart"),
@@ -473,15 +476,15 @@ ui <- dashboardPage(
       # county
       tabItem(tabName = "county",
               plotOutput("countybarplot"),
-              plotOutput("countybarplot2")
-              #plotOutput("citymedian")
+              plotOutput("countybarplot2"),
+              plotOutput("countymedian")
       ),
       
       # city
       tabItem(tabName = "city",
               plotOutput("citybarplot"),
-              plotOutput("citybarplot2")
-              #plotOutput("citymedian")
+              plotOutput("citybarplot2"),
+              plotOutput("citymedian")
       ),
       
       # rural or urban
@@ -490,12 +493,6 @@ ui <- dashboardPage(
               plotOutput("ruralurbanplot2")
       ),
       
-      # zip
-      tabItem(tabName = "zip",
-              selectInput(inputId = "demo",
-                          label= 'Select:',
-                          choices = c("hello", "bye"))
-      ),
       
       # residenceyear
       tabItem(tabName = "residenceyear",
@@ -793,6 +790,9 @@ server <- function(input, output) {
   output$ageprobcurve<- renderPlot({  
     
     agemodel2<- df %>% 
+      filter(status!= "Active") %>% 
+      mutate(status= ifelse(status!= "Charged Off", TRUE,
+                            FALSE)) %>% 
       filter(age<100) %>% 
       group_by(age) %>% 
       summarise(number=n(),
@@ -875,6 +875,9 @@ server <- function(input, output) {
   
   output$agesexprobability<- renderPlot({
     sexmodel2 <- df %>%
+      filter(status!= "Active") %>% 
+      mutate(status= ifelse(status!= "Charged Off", TRUE,
+                            FALSE)) %>% 
       filter(age<100) %>%
       group_by(age, status, sex) %>%
       summarise(Number= n(), Average= mean(status), sex) %>%
@@ -1030,12 +1033,12 @@ server <- function(input, output) {
   
   
   # County median income
-  #output$countymedian <- renderPlot({
-  # ggplot(data = countyincome)+
-  #  geom_col(aes(x = reorder(county, -countyincome), y = countyincome, fill = countypop))+
-  # labs(x = 'County', y = 'Median Houshold Income',caption = "From 2020 U.S. Census Data")+
-  #coord_flip()
-  #})
+  output$countymedian <- renderPlot({
+    ggplot(data = countyincome)+
+      geom_col(aes(x = reorder(county, -countyincome), y = countyincome, fill = countypop))+
+      labs(x = 'County', y = 'Median Houshold Income',caption = "From 2020 U.S. Census Data")+
+      coord_flip()
+  })
   
   
   
@@ -1074,19 +1077,20 @@ server <- function(input, output) {
                y= number,
                fill= status))+
       geom_col()+
+      coord_flip()+
       labs(x= "City",
            y= "Number of Loans")
   })  
   
   
-  # Median income in cities
-  #output$citymedian<- renderPlot({
-  # ggplot(data = cityincome)+
-  #  geom_col(aes(x= reorder(city, -cityincome), y = cityincome))+
-  # coord_flip()+
-  #labs(title = 'Median Household Income in Cities', x = 'City',
-  #    y= 'Median income')
-  #  })
+  #Median income in cities
+  output$citymedian<- renderPlot({
+    ggplot(data = cityincome)+
+      geom_col(aes(x= reorder(city, -cityincome), y = cityincome))+
+      coord_flip()+
+      labs(title = 'Median Household Income in Cities', x = 'City',
+           y= 'Median income')
+  })
   
   
   
@@ -1340,6 +1344,9 @@ server <- function(input, output) {
   # Probability of Repayment considering Monthly Income
   output$incomeprob<- renderPlot({
     incomemodel3<- df %>% 
+      filter(status!= "Active") %>% 
+      mutate(status= ifelse(status!= "Charged Off", TRUE,
+                            FALSE)) %>% 
       group_by(monthlyincome) %>% 
       summarise(number=n(),
                 probability= mean(status))
@@ -1519,7 +1526,10 @@ server <- function(input, output) {
       geom_line(aes(x= custID,
                     y= totalexpense),
                 color= "red")+
-      scale_y_continuous()
+      scale_y_continuous()+
+      labs(title= "Monthly Income and Monthly Expenses for Clients",
+           x= "Customers",
+           y= "Monthly Income")
     
     
   })
@@ -1552,7 +1562,10 @@ server <- function(input, output) {
       geom_line(aes(x= custID,
                     y= totalexpense),
                 color= "red")+
-      scale_y_continuous()
+      scale_y_continuous()+
+      labs(title= "Breakdown of Monthly Expenses for Clients",
+           x= "Customers",
+           y= "Monthly Expenses")
     
     
   })
@@ -1560,6 +1573,9 @@ server <- function(input, output) {
   # Probability of Repayment considering disposable income
   output$totalexpensebarplot3<- renderPlot({
     totalexpensemodel3<- df %>% 
+      filter(status!= "Active") %>% 
+      mutate(status= ifelse(status!= "Charged Off", TRUE,
+                            FALSE)) %>% 
       mutate(disposableincome= monthlyincome-totalexpense) %>% 
       group_by(disposableincome) %>% 
       summarise(number=n(),
@@ -1572,7 +1588,8 @@ server <- function(input, output) {
       ylim(0,1)+
       geom_smooth( se= FALSE, alpha= 0.2)+
       
-      labs(y= "Probability of Repayment",
+      labs(title= "Disposable Income Probability Curve",
+           y= "Probability of Repayment",
            x= "Disposable Income")
     
     
@@ -1598,7 +1615,9 @@ server <- function(input, output) {
                y= number,
                fill= status))+
       geom_col()+
-      scale_x_discrete(limits = c("<500", "500-1000", "1000-2000", "2000-3000", ">3000"))
+      scale_x_discrete(limits = c("<500", "500-1000", "1000-2000", "2000-3000", ">3000"))+
+      labs(x= "Loan Amount",
+           y= "Number of Loans")
   })
   
   # Bar Chart Showing loanamount and loan duration
@@ -1627,7 +1646,9 @@ server <- function(input, output) {
                y= number,
                fill= loan.duration))+
       geom_col()+
-      scale_x_discrete(limits = c("<500", "500-1000", "1000-2000", "2000-3000", ">3000"))
+      scale_x_discrete(limits = c("<500", "500-1000", "1000-2000", "2000-3000", ">3000"))+
+      labs(x= "Loan Amount",
+           y= "Number of Loans")
   })
   
   
@@ -1649,7 +1670,10 @@ server <- function(input, output) {
            aes(x= streetcity,
                y= number,
                fill= loanamount))+
-      geom_col()
+      geom_col()+
+      coord_flip()+
+      labs(x= "City",
+           y= "Number of Loans")
   })
   
   
@@ -1657,6 +1681,9 @@ server <- function(input, output) {
   output$probcurveloanamt<- renderPlot({
     
     loanamtprobcurve<- df %>% 
+      filter(status!= "Active") %>% 
+      mutate(status= ifelse(status!= "Charged Off", TRUE,
+                            FALSE)) %>% 
       group_by(amount_approved) %>% 
       summarise(number=n(),
                 probability= mean(status))
@@ -1687,7 +1714,9 @@ server <- function(input, output) {
            aes(x= purpose,
                y= number,
                fill= status))+
-      geom_col()
+      geom_col()+
+      labs(x= "Purpose of Loan",
+           y= "Number of Loans")
   })
   
   
@@ -1712,6 +1741,9 @@ server <- function(input, output) {
   output$purposeprobcurve<- renderPlot({
     
     purposemodel3<- df %>% 
+      filter(status!= "Active") %>% 
+      mutate(status= ifelse(status!= "Charged Off", TRUE,
+                            FALSE)) %>% 
       group_by(purpose) %>% 
       summarise(number=n(),
                 probability= mean(status))
@@ -1742,7 +1774,9 @@ server <- function(input, output) {
            aes(x= referenceperson,
                y= number,
                fill= status))+
-      geom_col()
+      geom_col()+
+      labs(x= "Reference Person",
+           y= "Number of Loans")
   })
   
   # Bar Chart Showing ogborrower for the submenu
@@ -1759,7 +1793,9 @@ server <- function(input, output) {
            aes(x= ogborrower,
                y= number,
                fill= status))+
-      geom_col()
+      geom_col()+
+      labs(x= "Client's Referrals",
+           y= "Number of Loans")
   })
   
   # Bar Chart Showing reference person for the submenu
@@ -1775,7 +1811,10 @@ server <- function(input, output) {
            aes(x= streetcity,
                y= number,
                fill= referenceperson))+
-      geom_col()
+      geom_col()+
+      coord_flip()+
+      labs(x= "City",
+           y= "Number of Loans")
   })
   
   
@@ -1810,7 +1849,9 @@ server <- function(input, output) {
            aes(x= employer,
                y= number,
                fill= employer))+
-      geom_col()
+      geom_col()+
+      labs(x= "Employer",
+           y= "Number of Clients")
     
   }) 
   
@@ -1827,7 +1868,9 @@ server <- function(input, output) {
            aes(x= referenceperson,
                y= number,
                fill= referenceperson))+
-      geom_col()    
+      geom_col()+
+      labs(x= "Reference Person",
+           y= "Number of Clients")    
     
     
   })
