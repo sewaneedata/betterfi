@@ -19,10 +19,7 @@ library(lubridate)
 library(tree)
 library(rpart)
 library(rpart.plot)
-library(mlr)
 library(caret)
-library(randomForest)
-library(tree)
 ```
 
 ```{r}
@@ -42,22 +39,16 @@ clientClean <- client %>%
   mutate(incomeamt = case_when(incomefreq == 'MO' || incomefreq == 'mo' ~ incomeamt, 
                                incomefreq == 'biwk' || incomefreq == 'BI' ~ incomeamt * 2, 
                                incomefreq == 'WE' ~ incomeamt * 4)) %>% 
-  mutate(residenceyear= floor(as.numeric(residenceperiod)/12)) %>% 
-  mutate(carsinhh = ifelse(is.na(carsinhh), 0, carsinhh)) %>% 
-  mutate(County = ifelse(is.na(County), 'Suffolk County', client$County)) %>%
   mutate(totalExpense = rowSums(client[,c(54, 55, 56, 57, 59)], na.rm = TRUE)) %>% 
   select(custID,
          streetcity, 
          streetzip, 
-         County, 
          income_source, 
          employer,
          incomeamt, 
          annualincome, 
          incomelevel, 
          totalExpense, 
-         carsinhh, 
-         residenceyear, 
          referenceperson)
 clientClean %>% View
 ```
@@ -85,14 +76,14 @@ loanData %>% View
 #Creating One Data set
 df <- merge(clientClean, loanData, by.x = 'custID', by.y = 'primary_borrower_name.x')
 df <- df[df$status_code != 'active',] 
-df <- df[-c(1, 14)]
+df <- df[-c(1, 11)]
 df %>% View
 ```
 
 ```{r}
 #Turning Categorical Variables into Factors
-cat <- c('streetcity', 'streetzip', 'County', 'income_source', 'employer', 'referenceperson', 
-         'incomelevel', 'status_code', 'purpose', 'carsinhh', 'payment_periods')
+cat <- c('streetzip', 'income_source', 'employer', 'referenceperson', 
+         'status_code', 'purpose',  'payment_periods', 'incomelevel', 'streetcity')
 
 for(x in cat) {
     df[, x] <- as.factor(df[, x])
@@ -112,276 +103,110 @@ dim(train); dim(test)
 ```
 
 ```{r}
-## Feature Selection
-fit <- rpart(status_code ~ ., 
-             data = df)
-
-data.frame(imp = fit$variable.importance)
+# 
+# accuracy <- c()
+# accuracy.tmp <- c()
+# tp.temp <- c()
+# 
+# depth <- 1:10
+# bucket <- 1:10
+# split <- 1:10
+# val <- seq(0, 0.070, by = 0.001)
+# x <- 1
+# 
+# for(j in 1:length(depth)){ 
+#   for(k in 1:length(bucket)) {
+#     for(l in 1:length(split)) {
+#       for(m in 1:length(val)) {
+# 
+# # shuffle row numbers and dataset
+# idx <- sample.int( nrow(df),size=nrow(df))
+# shuffled_df <- df[idx, ]
+# 
+# # size of each test set
+# folds <- cut(1:nrow(shuffled_df), breaks=3, labels=1:3)
+# 
+# for( i in 1:3 ){
+#   train <- shuffled_df[which(folds != i),]
+#   test <- shuffled_df[which(folds == i ),]
+#  
+#   
+#   model1 = rpart(status_code ~ ., 
+#                data = train, 
+#                method = "class", 
+#                control = rpart.control(maxdepth = depth[j], 
+#                                        minbucket = bucket[k], 
+#                                        minsplit = split[l], 
+#                                        cp = val[m]),
+#                na.action = na.pass)
+# 
+#   model1_test_pred = predict(model1, test, type = "class")
+#   matrix <- table(predicted = model1_test_pred, actual = test$status_code)
+#   accuracy[i] <- sum(diag(matrix))/sum(matrix)
+# 
+# }
+# 
+# tp <- c(depth[j], bucket[k], split[l], val[m])
+# tp.temp <- rbind(tp, tp.temp)
+# 
+# accuracy.tmp <- rbind(accuracy.tmp, accuracy)
+#       }
+#     }
+#   }
+# }
+# 
+# which.max(accuracy.tmp)
+# mean(accuracy)
+# hist(accuracy)
+# 
+# rowMeans(accuracy.tmp)
+# rpart.plot(model1,extra=2, cex=0.6)
+# 
+# tp.temp[rowMeans(accuracy.tmp) == max(rowMeans(accuracy.tmp))]
+#maxdepth = 4, minbucket = 8, minsplit = 8, cp = 0.018
 ```
 
 ```{r}
-#CLASSIFICATION Decision Tree
-
 #BASE MODEL - ALL VARIABLES
-model0 = tree(status_code ~ ., 
-             na.action = na.pass, 
-             method = "class", 
-             split = c("deviance", "gini"),
-             data = train)
-summary(model0)
+set.seed(100)
 
-#TRAIN ACCURACY
-model0_train_pred = predict(model0, train, type = "class")
-table(predicted = model0_train_pred, actual = train$status_code)
+trainRowNumbers <- createDataPartition(df$status_code, p=0.6, list=FALSE)
+  
+train <- df[trainRowNumbers,]
+test0 <- df[-trainRowNumbers,]
 
-#TEST ACCURACY
-model0_test_pred = predict(model0, test, type = "class")
-table(predicted = model0_test_pred, actual = test$status_code)
-```
 
-```{r}
-#RUNNING A BASE CLASS MODEL
-d.tree = rpart(status_code ~ ., 
-               data=train, 
-               method = 'class')
-
-#BASE MODEL PRECISION
-predicted_values <- predict(d.tree, test, type = 'class')
-accuracy(test$status_code, predicted_values)
-
-#CREATING MODEL TASK (CLASS)
-task <- makeClassifTask(data = df, target = "status_code")
-tree <- makeLearner("classif.rpart")
-
-#SELECTING PARAMETERS TO HYPTERTUNE
-treeParamSpace <- makeParamSet(
-  makeIntegerParam("minsplit", lower = 5, upper = 20),
-  makeIntegerParam("minbucket", lower = 3, upper = 10),
-  makeNumericParam("cp", lower = 0.01, upper = 0.1),
-  makeIntegerParam("maxdepth", lower = 3, upper = 10)
-)
-
-#GRID SEARCH TO SELECT BEST PARAMETERS
-randSearch <- makeTuneControlRandom(maxit = 200)
-cvForTuning <- makeResampleDesc("CV", iters = 5)
-
-tunedTreePars <- tuneParams(tree, 
-                            task = task,
-                            resampling = cvForTuning,
-                            par.set = treeParamSpace,
-                            control = randSearch)
-
-tunedTreePars
-```
-
-```{r}
-#BASE MODEL WITH HYPERTUNED PARAMETERS
-set.seed(42)
-model <- rpart(status_code ~ ., 
+model0 <- rpart(status_code ~ ., 
                data = train, 
                method = "class", 
-               control = rpart.control(maxdepth = 5, 
-                                       minbucket = 3, 
+               control = rpart.control(maxdepth = 4, 
+                                       minbucket = 8, 
                                        minsplit = 8, 
-                                       cp = 0.0202), 
+                                       cp = 0.018),
                na.action = na.pass)
-summary(model)
-rpart.plot(model,extra=2, cex=0.6)
 
-accuracy <- c()
-for(i in 1:50) {
-  
-  trainRowNumbers <- createDataPartition(df$status_code, p=0.7, list=FALSE)
-  
-  train <- df[trainRowNumbers,]
-  test <- df[-trainRowNumbers,]
-  
-  
-  pred <- predict(model, test, type = 'class')
-  accuracy[i] <- accuracy(test$status_code, pred)
-  i = i + 1
-}
-
-mean(accuracy)
-```
-```{r}
-#MODEL 1
-set.seed(100)
-model1 = tree(status_code ~ payment_periods + employer + amount_approved + streetcity + annualincome + residenceyear + 
-                totalExpense + income_source,  
-             na.action = na.pass, 
-             method = "class", 
-             split = c("deviance", "gini"),
-             data = train)
-summary(model1)
-
-accuracy <- c()
-#Cross Validation For Splitting Training and Testing
-for(i in 1:50) {
-
-  trainRowNumbers <- createDataPartition(df$status_code, p=0.7, list=FALSE)
-  
-  train <- df[trainRowNumbers,]
-  test <- df[-trainRowNumbers,]
-  
-  model1_test_pred = predict(model1, test, type = "class")
-  matrix <- table(predicted = model1_test_pred, actual = test$status_code)
-  accuracy[i] <- sum(diag(matrix))/sum(matrix)
-  
-  i = i + 1
-}
-
-mean(accuracy)
-```
-
-```{r}
-#BASE MODEL - ALL VARIABLES
-set.seed(100)
-
-model0 <- tree(status_code ~ ., 
-             na.action = na.pass, 
-             method = "class", 
-             split = c("deviance", "gini"),
-             data = train)
+rpart.plot(model0,extra=2, cex=0.6)
 summary(model0)
 
 accuracy <- c()
 #Cross Validation For Splitting Training and Testing
 for(i in 1:50) {
 
-  trainRowNumbers <- createDataPartition(df$status_code, p=0.7, list=FALSE)
-  
-  train <- df[trainRowNumbers,]
-  test <- df[-trainRowNumbers,]
-  
+  trainRowNumbers <- createDataPartition(test0$status_code, p=0.7, list=FALSE)
+  test <- df[trainRowNumbers,]
+  test %>% View
   #TEST ACCURACY
   model0_test_pred <- predict(model0, test, type = "class")
   matrix <- table(predicted = model0_test_pred, actual = test$status_code)
   accuracy[i] <- sum(diag(matrix))/sum(matrix)
-  
-  i = i + 1
-  
 }
 
 mean(accuracy)
+
+save(model0,file = 'model.RData')
+pred <- predict(model0, test, type = "prob")
+pred
 ```
-```{r}
-#PRUNED DECISION TREE
-prune0 = prune.misclass(model0, best = 6)
-summary(prune0)
-
-plot(prune0)
-text(prune0, pretty = 0)
-title(main = "Pruned Classification Tree")
-```
-
-```{r}
-#MODEL 2
-set.seed(100)
-model2 = tree(status_code ~ payment_periods + purpose + incomeamt + referenceperson + streetzip,  
-             na.action = na.pass, 
-             method = "class", 
-             split = c("deviance", "gini"),
-             data = train)
-summary(model2)
-
-accuracy <- c()
-#Cross Validation For Splitting Training and Testing
-for(i in 1:50) {
-
-  trainRowNumbers <- createDataPartition(df$status_code, p=0.7, list=FALSE)
-  
-  train <- df[trainRowNumbers,]
-  test <- df[-trainRowNumbers,]
-  
-  model2_test_pred = predict(model2, test, type = "class")
-  matrix <- table(predicted = model2_test_pred, actual = test$status_code)
-  accuracy[i] <- sum(diag(matrix))/sum(matrix)
-  
-  i = i + 1
-}
-
-mean(accuracy)
-```
-```{r}
-#MODEL 2 VISUALIZATION
-prune0 = prune.misclass(model2, best = 6)
-summary(prune0)
-
-plot(model2)
-text(model2, pretty = 0)
-title(main = "Pruned Classification Tree")
-```
-
-
-```{r}
-#MODEL 3 - VARIABLES SELECTED BY THE GROUP
-set.seed(100)
-model3 = tree(status_code ~ payment_periods + amount_approved + incomeamt + streetcity + employer + referenceperson + purpose,  
-             na.action = na.pass, 
-             method = "class", 
-             split = c("deviance", "gini"),
-             data = train)
-summary(model3)
-
-accuracy <- c()
-#Cross Validation For Splitting Training and Testing
-for(i in 1:50) {
-
-  trainRowNumbers <- createDataPartition(df$status_code, p=0.7, list=FALSE)
-  
-  train <- df[trainRowNumbers,]
-  test <- df[-trainRowNumbers,]
-  
-  model3_test_pred = predict(model3, test, type = "class")
-  matrix <- table(predicted = model3_test_pred, actual = test$status_code)
-  accuracy[i] <- sum(diag(matrix))/sum(matrix)
-  
-  i = i + 1
-}
-
-mean(accuracy)
-```
-
-```{r}
-#MODEL 3 VISUALIZATION
-prune0 = prune.misclass(model3, best = 6)
-summary(prune0)
-
-plot(model3)
-text(model3, pretty = 0)
-title(main = "Pruned Classification Tree")
-```
-```{r}
-#MODEL 4
-set.seed(100)
-model4 = tree(status_code ~ streetzip + income_source + annualincome + payment_periods + amount_approved,  
-             na.action = na.pass, 
-             method = "class", 
-             split = c("deviance", "gini"),
-             data = train)
-summary(model4)
-
-accuracy <- c()
-#Cross Validation For Splitting Training and Testing
-for(i in 1:50) {
-
-  trainRowNumbers <- createDataPartition(df$status_code, p=0.7, list=FALSE)
-  
-  train <- df[trainRowNumbers,]
-  test <- df[-trainRowNumbers,]
-  
-  model4_test_pred = predict(model4, test, type = "class")
-  matrix <- table(predicted = model4_test_pred, actual = test$status_code)
-  accuracy[i] <- sum(diag(matrix))/sum(matrix)
-  
-  i = i + 1
-}
-
-mean(accuracy)
-```
-
-
 
 
 
