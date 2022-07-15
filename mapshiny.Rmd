@@ -1,0 +1,142 @@
+---
+title: "Lending Locations"
+author: "DataLab"
+runtime: shiny
+output:
+  flexdashboard::flex_dashboard:
+    theme:
+      version: 4
+      bg: "#FAFBFE"
+      fg: "#555555" 
+      primary: "#ad4944"
+      navbar-bg: "#DE9D49"
+      base_font: 
+        google: Prompt
+      heading_font:
+        google: Helvetica
+      code_font:
+        google: 
+          family: mono
+          local: false
+    orientation: row
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(flexdashboard)
+library(shiny)
+library(tidyverse)
+library(DT)
+library(plotly)
+library(leaflet)
+library(leaflet.extras)
+library(gsheet)
+library(rgdal)
+library(raster)
+library(RColorBrewer)
+library(forcats)
+library(lubridate)
+library(googlesheets4)
+library(sf)
+
+```
+
+```{r df, include = FALSE}
+# reading in TN county polygon data
+tncounty<- shapefile('/Users/elizabethmorris/Desktop/Datalab 2022/betterfi/data/TN_counties/TN_counties')
+tncounty<- spTransform(tncounty, CRS("+init=epsg:4326"))
+
+# selecting counties in area
+counties <- c('Hamilton', 'Marion', 'Franklin', 'Coffee', 'Grundy')
+
+boundaries <- tncounty[tncounty$NAME %in% counties,]
+
+# reading in map loan data from g sheet
+maploan<- read_csv('maploan.csv')
+
+```
+
+```{r reactive, echo = FALSE}
+# Making map reactive in selection of counties, trying to sum up the number of counties in each county after they click... this chunk is not working I am stuck
+map1 <- reactive({
+  
+  if("All" %in% input$county_select){
+    return(boundaries)
+  }
+  # Select only counties that have been selected!
+  df<-subset(boundaries, boundaries@data$NAME %in% input$county_select)
+  return(df)
+})
+```
+
+```{r icons, echo = FALSE}
+
+# Trying to make a pallette of colors based on the sum of lending locations by county... also not working idk why
+
+paldata<-maploan %>% group_by(county) %>% summarise(total = n())
+
+pal <- colorNumeric(
+    palette = "Reds",
+    domain = paldata$total)
+# Loaing in awesome icon, its a bit finicky but works
+cash <- makeAwesomeIcon(
+  icon = "money bill",
+  iconColor = "#FAFBFE",
+  markerColor ="red",
+  library = "fa")
+
+```
+
+
+ {data-orientation=rows}
+=======================================
+
+Sidebar {.sidebar}
+---------------------------------------
+###
+
+```{r loc_inp, echo = FALSE}
+# select county in the sidebar
+masterdatacounty<-maploan %>% pull(county) %>% unique() %>% sort()
+selectInput("county_select",
+            "Select county: ",
+            choices = c("All", masterdatacounty),
+            multiple = TRUE,
+            selected = "All")
+
+```
+
+Row
+---------------------------------------
+
+### Map
+
+```{r map, echo = FALSE}
+
+renderLeaflet({
+leaflet() %>%
+  addProviderTiles(providers$OpenStreetMap) %>%
+  addAwesomeMarkers(data = maploan, label = ~maploan$apr, icon = cash)%>%
+  addPolygons(data = map1(),
+              color = "orange",
+              fillColor = pal,
+              fillOpacity = .6,
+              weight = 2,
+              opacity = .9,
+              label = ~NAME,
+              highlightOptions = highlightOptions(color = "#91BAA7", bringToFront = TRUE )) %>%
+  addControlGPS(options = gpsOptions(position = "topleft", activate = TRUE,
+                                             autoCenter = TRUE, maxZoom = 200,
+                                             setView = TRUE))
+})
+
+# legend for when pallette works 
+
+#addLegend(pal = pal,
+    #         values = boundaries@maploan$county,
+    #         opacity = 0.7,
+    #         title = htmltools::HTML("Number of Predatory Lending Locations by                                       County"),
+    #         position = "bottomright")
+
+```
