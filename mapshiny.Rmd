@@ -1,5 +1,5 @@
 ---
-title: "Lending Locations"
+title: "Predatory Lending Locations"
 author: "DataLab"
 runtime: shiny
 output:
@@ -44,7 +44,7 @@ library(sf)
 
 ```{r df, include = FALSE}
 # reading in TN county polygon data
-tncounty<- shapefile('/Users/elizabethmorris/Desktop/Datalab 2022/betterfi/data/TN_counties/TN_counties')
+tncounty<- shapefile('/Users/elizabethmorris/Desktop/Datalab 2022/betterfi/TN_counties/TN_counties')
 tncounty<- spTransform(tncounty, CRS("+init=epsg:4326"))
 
 # selecting counties in area
@@ -72,9 +72,9 @@ map1 <- reactive({
 
 ```{r icons, echo = FALSE}
 
-# Trying to make a pallette of colors based on the sum of lending locations by county... also not working idk why
-
 paldata<-maploan %>% group_by(county) %>% summarise(total = n())
+
+mergemap <- merge(boundaries, paldata, by.x = 'NAME', by.y = 'county')
 
 pal <- colorNumeric(
     palette = "Reds",
@@ -109,6 +109,29 @@ selectInput("county_select",
 
 Row
 ---------------------------------------
+###
+
+```{r}
+renderValueBox({
+  valueBox("Number of Payday Loans in TN",
+           value = "1,293",
+           icon = "fa-building")
+})
+```
+
+###
+
+```{r}
+renderValueBox({
+  valueBox("Number of McDonald's in TN",
+           value = "285",
+           icon = "fa-burger-cheese")
+})
+```
+
+
+Row
+---------------------------------------
 
 ### Map
 
@@ -118,9 +141,9 @@ renderLeaflet({
 leaflet() %>%
   addProviderTiles(providers$OpenStreetMap) %>%
   addAwesomeMarkers(data = maploan, label = ~maploan$apr, icon = cash)%>%
-  addPolygons(data = map1(),
+  addPolygons(data = mergemap,
               color = "orange",
-              fillColor = pal,
+              fillColor = ~pal(total),
               fillOpacity = .6,
               weight = 2,
               opacity = .9,
