@@ -1,5 +1,5 @@
 ---
-title: "Predatory Lending Locations"
+title: "Predatory Lending"
 author: "Datalab"
 runtime: shiny
 output:
@@ -7,7 +7,7 @@ output:
     theme:
       version: 4
       bg: "#FAFBFE"
-      fg: "#555555" 
+      fg: "#d4c5c5" 
       primary: "#ad4944"
       navbar-bg: "#DE9D49"
       base_font: 
@@ -16,7 +16,7 @@ output:
         google: Helvetica
       code_font:
         google: 
-          family: mono
+          family: sans_serif
           local: false
     orientation: row
     vertical_layout: fill
@@ -83,7 +83,7 @@ cash <- makeAwesomeIcon(
 
 # making popup labels
 labels <- sprintf(
-  "<strong>%s</strong><br/>%g median income<br/>%g people ",
+  "<strong>%s</strong><br/>median income: $%g <br/>population: %g",
   mergemap$NAMELSAD, mergemap$countyincome, mergemap$countypop
 ) %>% lapply(htmltools::HTML)
 
@@ -94,15 +94,21 @@ labels <- sprintf(
  {data-orientation=rows}
 =======================================
 
+Sidebar {.sidebar}
+---------------------------------------
+###
+
+<font size="3" color = "#853801"> This map shows potential predatory lending locations that offer payday, title, and installment loan services. All of these stores have interest rates that can range up to *460%* annual percentage rate. </font>
+
 Row
 ---------------------------------------
 ###
 
 ```{r}
 renderValueBox({
-  valueBox("Number of Payday Loans in TN",
-           value = "1,293",
-           icon = "fa-bring-forward")
+  valueBox("Number of Payday Lending Locations in TN",
+           value = "~1,023",
+           icon = "fa-building")
 })
 ```
 
@@ -112,15 +118,13 @@ renderValueBox({
 renderValueBox({
   valueBox("Number of McDonald's in TN",
            value = "285",
-          icon = "fa-burger")
+          icon = "fa-user")
 })
 ```
 
-
 Row
 ---------------------------------------
-
-### Map
+### Map 
 
 ```{r map, echo = FALSE}
 renderLeaflet({
@@ -149,9 +153,8 @@ leaflet() %>%
     addLegend(pal = pal,
         values = paldata$total,
         opacity = 0.7,
-        title = htmltools::HTML("# of Payday Loans"),
+        title = htmltools::HTML("Payday Loan <br/>Locations"),
         position = "bottomright")
-
 })
-
 ```
+
