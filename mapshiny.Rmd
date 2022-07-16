@@ -1,6 +1,6 @@
 ---
 title: "Predatory Lending"
-author: "Datalab"
+author: "BetterFi • Datalab"
 runtime: shiny
 output:
   flexdashboard::flex_dashboard:
@@ -96,6 +96,8 @@ Sidebar {.sidebar}
 ###
 
 <font size="3" color = "#853801"> This map shows potential predatory lending locations that offer payday, title, flex, and installment loan services. All of these stores have interest rates that can range up to *460%* annual percentage rate. </font>
+
+<font size="3" color = "#d66d1c"> BetterFi is different. We have an up front APR of 24% and offer a variety of services to help get your finances back on track. So avoid these places, come to BetterFi! </font>
 
 Row
 ---------------------------------------
