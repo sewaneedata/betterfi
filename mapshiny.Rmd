@@ -56,10 +56,7 @@ counties <- c('Hamilton', 'Marion', 'Franklin', 'Coffee', 'Grundy')
 boundaries <- tncounty[tncounty$NAME %in% counties,]
 
 # reading in map loan data from g sheet
-maploan<- read_csv('maploan1.csv')
-
-# county median income
-countyincome <- read_csv('countymedianincome.csv')
+maploan<- read_csv('maploan.csv')
 
 ```
 
@@ -94,11 +91,11 @@ labels <- sprintf(
  {data-orientation=rows}
 =======================================
 
-Sidebar {.sidebar}
+Sidebar {.sidebar} 
 ---------------------------------------
 ###
 
-<font size="3" color = "#853801"> This map shows potential predatory lending locations that offer payday, title, and installment loan services. All of these stores have interest rates that can range up to *460%* annual percentage rate. </font>
+<font size="3" color = "#853801"> This map shows potential predatory lending locations that offer payday, title, flex, and installment loan services. All of these stores have interest rates that can range up to *460%* annual percentage rate. </font>
 
 Row
 ---------------------------------------
@@ -142,7 +139,7 @@ leaflet() %>%
               label = ~labels,
               labelOptions = labelOptions(
     style = list("font-weight" = "normal", padding = "3px 8px"),
-    textsize = "15px",
+    textsize = "12px", 
     direction = "auto"),
               highlightOptions = highlightOptions(
                 color = "#f0e771", bringToFront = TRUE )) %>%
