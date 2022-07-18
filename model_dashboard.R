@@ -12,9 +12,9 @@ library(tree)
 library(scales)
 
 #Read in the Client and Loan Data
-client <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-clientdata-anon.csv")
-loan <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-loandata-anon.csv")
-loan2 <- read_csv("C:/Users/tilin/Downloads/LOAN-DATA-070122.csv")
+client <- read_csv("/Users/user/Desktop/DataLab/BetterFi New Data/new_client.csv")
+loan <- read_csv("/Users/user/Desktop/DataLab/BetterFi Data/Loan Data.csv")
+loan2 <- read_csv("/Users/user/Desktop/DataLab/BetterFi New Data/new_loan.csv")
 
 ################################################################################
 ## Client Dataset for Decision Tree 
@@ -196,7 +196,7 @@ server <- function(input, output) {
   
   #Takes in Data from Client and Makes a Data Frame
   observeEvent(input$submit, {
-    rv$df <- data.frame()
+    rv$df_model <- data.frame()
     rv$predict <- data.frame()
     
     #Data Frame with Applicant Data

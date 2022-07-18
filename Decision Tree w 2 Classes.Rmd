@@ -24,9 +24,9 @@ library(caret)
 
 ```{r}
 #Read in the Client and Loan Data
-client <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-clientdata-anon.csv")
-loan <- read_csv("C:/Users/tilin/Desktop/BetterFi/Copy of DataLab-loandata-anon.csv")
-loan2 <- read_csv("C:/Users/tilin/Downloads/LOAN-DATA-070122.csv")
+client <- read_csv("/Users/user/Desktop/DataLab/BetterFi Data/Client Data.csv")
+loan <- read_csv("/Users/user/Desktop/DataLab/BetterFi Data/Loan Data.csv")
+loan2 <- read_csv("/Users/user/Desktop/DataLab/BetterFi New Data/new_loan.csv")
 ```
 
 ```{r}
@@ -60,14 +60,11 @@ loanClean <- loan %>%
                                  status_code == 'pif_refinanced' ~ 'pif', 
                                  TRUE ~ loan$status_code)) %>% 
   select(primary_borrower_name, status_code, purpose, amount_approved, full_identifier) 
-
 loan2Clean <- loan2 %>% 
   select(payment_periods, primary_borrower_name, loan_identifier) %>% 
   mutate(payment_periods = gsub("mo","", as.character(payment_periods))) 
-
 loanData <- merge(loanClean, loan2Clean, by.x = 'full_identifier', by.y = 'loan_identifier') %>% 
   mutate(monthlyPayment = round(amount_approved/as.numeric(payment_periods), 2))
-
 loanData <- loanData[-7]
 loanData %>% View
 ```
@@ -84,11 +81,9 @@ df %>% View
 #Turning Categorical Variables into Factors
 cat <- c('streetzip', 'income_source', 'employer', 'referenceperson', 
          'status_code', 'purpose',  'payment_periods', 'incomelevel', 'streetcity')
-
 for(x in cat) {
     df[, x] <- as.factor(df[, x])
 }
-
 str(df)
 ```
 
@@ -96,7 +91,6 @@ str(df)
 #Training/Testing/Validation Data Sets
 set.seed(100)
 trainRowNumbers <- createDataPartition(df$status_code, p=0.7, list=FALSE)
-
 train <- df[trainRowNumbers,]
 test <- df[-trainRowNumbers,]
 dim(train); dim(test)
@@ -169,13 +163,10 @@ dim(train); dim(test)
 ```{r}
 #BASE MODEL - ALL VARIABLES
 set.seed(100)
-
 trainRowNumbers <- createDataPartition(df$status_code, p=0.6, list=FALSE)
   
 train <- df[trainRowNumbers,]
 test0 <- df[-trainRowNumbers,]
-
-
 model0 <- rpart(status_code ~ ., 
                data = train, 
                method = "class", 
@@ -184,14 +175,11 @@ model0 <- rpart(status_code ~ .,
                                        minsplit = 8, 
                                        cp = 0.018),
                na.action = na.pass)
-
 rpart.plot(model0,extra=2, cex=0.6)
 summary(model0)
-
 accuracy <- c()
 #Cross Validation For Splitting Training and Testing
 for(i in 1:50) {
-
   trainRowNumbers <- createDataPartition(test0$status_code, p=0.7, list=FALSE)
   test <- df[trainRowNumbers,]
   test %>% View
@@ -200,13 +188,10 @@ for(i in 1:50) {
   matrix <- table(predicted = model0_test_pred, actual = test$status_code)
   accuracy[i] <- sum(diag(matrix))/sum(matrix)
 }
-
 mean(accuracy)
-
 save(model0,file = 'model.RData')
 pred <- predict(model0, test, type = "prob")
 pred
 ```
-
 
 

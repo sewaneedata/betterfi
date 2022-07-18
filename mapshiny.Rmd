@@ -1,13 +1,13 @@
 ---
-title: "Predatory Lending Locations"
-author: "DataLab"
+title: "Predatory Lending"
+author: "BetterFi • Datalab"
 runtime: shiny
 output:
   flexdashboard::flex_dashboard:
     theme:
       version: 4
       bg: "#FAFBFE"
-      fg: "#555555" 
+      fg: "#d4c5c5" 
       primary: "#ad4944"
       navbar-bg: "#DE9D49"
       base_font: 
@@ -16,7 +16,7 @@ output:
         google: Helvetica
       code_font:
         google: 
-          family: mono
+          family: sans_serif
           local: false
     orientation: row
     vertical_layout: fill
@@ -39,6 +39,9 @@ library(forcats)
 library(lubridate)
 library(googlesheets4)
 library(sf)
+library(fontawesome)
+library(htmltools)
+library(tidyverse)
 
 ```
 
@@ -57,24 +60,13 @@ maploan<- read_csv('maploan.csv')
 
 ```
 
-```{r reactive, echo = FALSE}
-# Making map reactive in selection of counties, trying to sum up the number of counties in each county after they click... this chunk is not working I am stuck
-map1 <- reactive({
-  
-  if("All" %in% input$county_select){
-    return(boundaries)
-  }
-  # Select only counties that have been selected!
-  df<-subset(boundaries, boundaries@data$NAME %in% input$county_select)
-  return(df)
-})
-```
 
 ```{r icons, echo = FALSE}
 
-paldata<-maploan %>% group_by(county) %>% summarise(total = n())
+paldata<-maploan %>% group_by(county, countyincome, countypop) %>% summarise(total = n())
 
-mergemap <- merge(boundaries, paldata, by.x = 'NAME', by.y = 'county')
+mergemap <- merge(boundaries, paldata,  by.x = 'NAME', by.y = 'county')
+
 
 pal <- colorNumeric(
     palette = "Reds",
@@ -86,26 +78,26 @@ cash <- makeAwesomeIcon(
   markerColor ="red",
   library = "fa")
 
+# making popup labels
+labels <- sprintf(
+  "<strong>%s</strong><br/>median income: $%g <br/>population: %g",
+  mergemap$NAMELSAD, mergemap$countyincome, mergemap$countypop
+) %>% lapply(htmltools::HTML)
+
+
 ```
 
 
  {data-orientation=rows}
 =======================================
 
-Sidebar {.sidebar}
+Sidebar {.sidebar} 
 ---------------------------------------
 ###
 
-```{r loc_inp, echo = FALSE}
-# select county in the sidebar
-masterdatacounty<-maploan %>% pull(county) %>% unique() %>% sort()
-selectInput("county_select",
-            "Select county: ",
-            choices = c("All", masterdatacounty),
-            multiple = TRUE,
-            selected = "All")
+<font size="3" color = "#853801"> This map shows potential predatory lending locations that offer payday, title, flex, and installment loan services. All of these stores have interest rates that can range up to *460%* annual percentage rate. </font>
 
-```
+<font size="3" color = "#d66d1c"> BetterFi is different. We have an up front APR of 24% and offer a variety of services to help get your finances back on track. So avoid these places, come to BetterFi! </font>
 
 Row
 ---------------------------------------
@@ -113,8 +105,8 @@ Row
 
 ```{r}
 renderValueBox({
-  valueBox("Number of Payday Loans in TN",
-           value = "1,293",
+  valueBox("Number of Payday Lending Locations in TN",
+           value = "~1,023",
            icon = "fa-building")
 })
 ```
@@ -125,41 +117,43 @@ renderValueBox({
 renderValueBox({
   valueBox("Number of McDonald's in TN",
            value = "285",
-           icon = "fa-burger-cheese")
+          icon = "fa-user")
 })
 ```
 
-
 Row
 ---------------------------------------
-
-### Map
+### Map 
 
 ```{r map, echo = FALSE}
-
 renderLeaflet({
 leaflet() %>%
   addProviderTiles(providers$OpenStreetMap) %>%
-  addAwesomeMarkers(data = maploan, label = ~maploan$apr, icon = cash)%>%
+  addAwesomeMarkers(data = maploan,
+                    label = ~maploan$apr, 
+                    icon = cash)%>%
   addPolygons(data = mergemap,
               color = "orange",
               fillColor = ~pal(total),
               fillOpacity = .6,
               weight = 2,
               opacity = .9,
-              label = ~NAME,
-              highlightOptions = highlightOptions(color = "#91BAA7", bringToFront = TRUE )) %>%
-  addControlGPS(options = gpsOptions(position = "topleft", activate = TRUE,
-                                             autoCenter = TRUE, maxZoom = 200,
-                                             setView = TRUE))
+              label = ~labels,
+              labelOptions = labelOptions(
+    style = list("font-weight" = "normal", padding = "3px 8px"),
+    textsize = "12px", 
+    direction = "auto"),
+              highlightOptions = highlightOptions(
+                color = "#f0e771", bringToFront = TRUE )) %>%
+   addControlGPS(options = gpsOptions(
+                position = "topleft", activate = TRUE,
+                autoCenter = TRUE, maxZoom = 200,
+                setView = TRUE)) %>% 
+    addLegend(pal = pal,
+        values = paldata$total,
+        opacity = 0.7,
+        title = htmltools::HTML("Payday Loan <br/>Locations"),
+        position = "bottomright")
 })
-
-# legend for when pallette works 
-
-#addLegend(pal = pal,
-    #         values = boundaries@maploan$county,
-    #         opacity = 0.7,
-    #         title = htmltools::HTML("Number of Predatory Lending Locations by                                       County"),
-    #         position = "bottomright")
-
 ```
+
