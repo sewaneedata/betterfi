@@ -58,7 +58,9 @@ dt_loan <- dt_loan[-7]
 ## Merging Dataset for Decision Tree 
 ################################################################################
 df_model <- merge(dt_client, dt_loan, by.x = 'custID', by.y = 'primary_borrower_name.x')
-df_model <- df_model[df$status_code != 'active',] 
+#df_model <- df_model[df$status_code != 'active',] 
+df_model<- df_model %>% 
+  filter(status_code!= 'active')
 df_model <- df_model[-c(1, 11)]
 ################################################################################
 ## Categorical Factors 
@@ -111,34 +113,34 @@ ui <- dashboardPage(
                                            width = '100%')),
                        column(3, selectInput(inputId = 'referenceperson', 
                                              h5("Reference Person:"), 
-                                             choices = (sort(unique(df$referenceperson))),
+                                             choices = (sort(unique(df_model$referenceperson))),
                                              width = '100%'))),
               br(),
               h3('LOCATION'),
               fluidRow(width = 12,
                        column(3, selectInput(inputId = 'streetcity', 
                                              h5("Street City:"), 
-                                             choices = sort(unique(df$streetcity)),  
+                                             choices = sort(unique(df_model$streetcity)),  
                                              width = '100%')), 
                        
                        column(3, selectInput(inputId = 'streetzip', 
                                              h5("Street Zip:"), 
-                                             choices = sort(unique(df$streetzip)), 
+                                             choices = sort(unique(df_model$streetzip)), 
                                              width = '100%'))), 
               br(),
               h3('INCOME AND EXPENSES'),
               fluidRow(width = 12, 
                        column(3, selectInput(inputId = 'income_source', 
                                              h5("Income Source:"), 
-                                             choices = sort(unique(df$income_source)), 
+                                             choices = sort(unique(df_model$income_source)), 
                                              width = '100%')), 
                        column(3, selectInput(inputId = 'employer', 
                                              h5("Employer:"), 
-                                             choices = sort(unique(df$employer)), 
+                                             choices = sort(unique(df_model$employer)), 
                                              width = '100%')),
                        column(3, selectInput(inputId = 'incomelevel', 
                                              h5("Income Level:"),
-                                             choices = sort(unique(df$incomelevel)),
+                                             choices = sort(unique(df_model$incomelevel)),
                                              width = '100%'))),
               fluidRow(width = 12,
                        column(3, numericInput(inputId = 'incomeamt', 
@@ -158,7 +160,7 @@ ui <- dashboardPage(
               fluidRow(width = 12,
                        column(3, selectInput(inputId = 'purpose', 
                                               h5("Purpose:"), 
-                                              choices = sort(unique(df$purpose)), 
+                                              choices = sort(unique(df_model$purpose)), 
                                               width = '100%')),
                        column(3, numericInput(inputId = 'amount_approved', 
                                              h5("Amount Approved:"), 
@@ -170,7 +172,7 @@ ui <- dashboardPage(
                                               width = '100%')),
                        column(3, selectInput(inputId = 'payment_periods', 
                                               h5("Payment Periods:"), 
-                                              choices = sort(unique(df$payment_periods)),  
+                                              choices = sort(unique(df_model$payment_periods)),  
                                               width = '100%'))),
               
               #Submit the Data
