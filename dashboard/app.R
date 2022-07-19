@@ -15,6 +15,7 @@ library(knitr)
 library(rpart)
 library(rpart.plot)
 library(caret)
+library(tidyr)
 
 
 #Read in the Client and Loan Data
@@ -252,11 +253,6 @@ Dashboard_df <- merge(clientClean, loanClean, by.x = 'custID', by.y = 'primary_b
 
 
 
-##############################################################################################
-
-### Cleaning Tilina Shit
-
-##############################################################################################
 
 
 
@@ -1228,7 +1224,7 @@ server <- function(input, output) {
                fill= denied))+
       geom_col(position= "dodge2")+
       scale_fill_discrete(name= "Loan Acceptance")+
-      coord_flip()+
+      #coord_flip()+
       labs(title= "Number of Clients and Loan Acceptance by License State",
            x= "License State",
            y= "Number of Clients")
@@ -1253,7 +1249,7 @@ server <- function(input, output) {
                y= number,
                fill= status))+
       geom_col(position= "dodge2")+
-      coord_flip()+
+      #coord_flip()+
       scale_fill_manual(values= c("#85929E","#F1C40F","#E74C3C","#3498DB"))+
       labs(title= "Number of Loans and Loan Status by License State",
            x= "License State",
@@ -1948,30 +1944,25 @@ server <- function(input, output) {
   output$totalexpensebarplot2<- renderPlot({
     
     totalexpensemodel2<- clientClean %>% 
-      arrange(monthlyincome)
+      pivot_longer(cols=c(housingexpense, phoneplanexpense, elecexpense, waterexpense, carinsexpense),
+                   names_to= "expensename",
+                   values_to= "expenseamount") %>% 
+      mutate(expensename= factor(expensename, levels= c("waterexpense",
+                                              "phoneplanexpense",
+                                              "elecexpense",
+                                              "carinsexpense",
+                                              "housingexpense")))  
+      
     
     ggplot(data= totalexpensemodel2)+
       geom_col(aes(x= custID,
-                   y= totalexpense),
-               fill= "red")+
-      geom_col(aes(x= custID,
-                   y= housingexpense),
-               fill= "green")+
-      geom_col(aes(x= custID,
-                   y= phoneplanexpense),
-               fill= "yellow")+
-      geom_col(aes(x= custID,
-                   y= elecexpense),
-               fill= "orange")+
-      geom_col(aes(x= custID,
-                   y= waterexpense),
-               fill= "black")+
-      geom_col(aes(x= custID,
-                   y= carinsexpense),
-               fill= "purple")+
+                   y= expenseamount,
+                   fill= expensename))+
       labs(title= "Breakdown of Monthly Expenses for Clients",
            x= "Customers",
-           y= "Monthly Expenses")
+           y= "Monthly Expenses")+
+      scale_fill_discrete(name= "Expense Name")+
+      theme(axis.text.x= element_blank())
     
     
   })
