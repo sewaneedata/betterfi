@@ -34,5 +34,9 @@ According to the model, five of the most important variables in the prediction p
 5. Click on `Generate Prediction` to see the probabilities 
 The information will be saved onto a csv file on your laptop called `newClientData.csv`
 
-# Public Data
-There is some data sets that is opensource to the public as it shows the 
+# Running the Map
+1. Open R-Studio, and make sure to have the ‘mapshiny.Rmd’ file open.
+2. Install any missing packages, and library all packages. If a question asks about 
+3. Load in tn_county shapefile, maploan.csv
+4. Select ‘Run Document’ at the top of the shiny document
+5. The map should load, you can hover over the county and locations. 
