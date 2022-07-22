@@ -14,3 +14,5 @@ The Predictive Model tab allows for our client to input new client's details to 
 
 The Data Analytics tab is broken down into  Demographics, Income and Expenses, and Loan Details, that shows significant trends that influence the probability of repayment as well as the relationship between variables and loan repayment.
 
+### The Map Dashboard
+The map shows potential predatory lending locations and the Annual Percentage Rate with a hover-over feature. It also shows household median income and population of each county, as well as the amount of payday loan locations as compared to the number of McDonald's in Tennessee. 
