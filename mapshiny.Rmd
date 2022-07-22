@@ -28,7 +28,6 @@ library(flexdashboard)
 library(shiny)
 library(tidyverse)
 library(DT)
-library(plotly)
 library(leaflet)
 library(leaflet.extras)
 library(gsheet)
@@ -37,11 +36,8 @@ library(raster)
 library(RColorBrewer)
 library(forcats)
 library(lubridate)
-library(googlesheets4)
 library(sf)
-library(fontawesome)
 library(htmltools)
-library(tidyverse)
 
 ```
 
@@ -95,9 +91,9 @@ Sidebar {.sidebar}
 ---------------------------------------
 ###
 
-<font size="3" color = "#853801"> This map shows potential predatory lending locations that offer payday, title, flex, and installment loan services. All of these stores have interest rates that can range up to *460%* annual percentage rate. </font>
+<font size="3" color = "#853801"> This map shows potential predatory lending locations that offer payday, title, flex, and installment loan services. All of these stores have interest rates that can range up to *460%* annual percentage rate. If a store's APR is available to the public, when you hover over the location, it shows how high the store may charge interest on your loan.</font>
 
-<font size="3" color = "#d66d1c"> BetterFi is different. We have an up front APR of 24% and offer a variety of services to help get your finances back on track. So avoid these places, come to BetterFi! </font>
+<font size="3" color = "#d66d1c"> BetterFi is different. We have an APR of 24% and offer a variety of services to help get your finances back on track. So avoid these places, come to BetterFi! </font>
 
 Row
 ---------------------------------------
