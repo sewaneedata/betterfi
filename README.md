@@ -25,11 +25,11 @@ Our decision tree can correctly predict whether an applicant will pay in full or
 According to the model, five of the most important variables in the prediction process are the streetzip, annual income, employer, amount_approved, and the monthlyPayments. Overall, due to the limited training data, and especially defaulting data, the model does a better job at predicting loans that will be paid off compared to loans that will default.
 
 ### Using the model:
-Open R Studio, and make sure to have the ‘Decision Tree w 2 Classes.Rmd’ file open. 
-Click on the ‘Run’ dropdown, then select ‘Run All’
-The dashboard will load, automatically showing the ‘Predictive Model’ tab 
-Input a client’s information by filling in the text boxes and selecting the appropriate choices (calculations are required for incomeamt, totalExpense and monthlyPayments)
-Click on ‘Generate Prediction’ to see the probabilities 
+1. Open R Studio, and make sure to have the ‘app.R’ file open. 
+2. Click on the ‘Run’ dropdown, then select ‘Run All’
+3. The dashboard will load, automatically showing the ‘Predictive Model’ tab 
+4. Input a client’s information by filling in the text boxes and selecting the appropriate choices (calculations are required for incomeamt, totalExpense and monthlyPayments)
+5. Click on ‘Generate Prediction’ to see the probabilities 
 The information will be saved onto a csv file on your laptop called ‘newClientData.csv’
 
 ### Future work: 
