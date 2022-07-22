@@ -16,3 +16,11 @@ The Data Analytics tab is broken down into  Demographics, Income and Expenses, a
 
 ### The Map Dashboard
 The map shows potential predatory lending locations and the Annual Percentage Rate with a hover-over feature. It also shows household median income and population of each county, as well as the amount of payday loan locations as compared to the number of McDonald's in Tennessee. 
+
+### How to run the code?
+Make sure you have R-Studio! Load in all the libraried packages, and make sure they are installed. Load in the client, loan, and loan updated data (all from 2022). The data is first cleaned to make it more consistent
+
+
+
+### Public Data
+There is some data sets that is opensource to the public as it shows the 
