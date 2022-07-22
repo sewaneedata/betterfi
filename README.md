@@ -8,3 +8,9 @@ BetterFi is a 501(c)(3) non-profit corporation that promotes economic justice an
 
 ### Who Are We?
 We are a new generation of data scientists who work on social impact projects, trained by the [Sewanee DataLab](https://new.sewanee.edu/sewanee-datalab/).
+
+### The Dashboard
+The Predictive Model tab allows for our client to input new client's details to generate a prediction of whether or not they will pay in full or charge off. 
+
+The Data Analytics tab is broken down into  Demographics, Income and Expenses, and Loan Details, that shows significant trends that influence the probability of repayment as well as the relationship between variables and loan repayment.
+
