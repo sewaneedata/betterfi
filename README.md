@@ -32,7 +32,7 @@ Input a client’s information by filling in the text boxes and selecting the ap
 Click on ‘Generate Prediction’ to see the probabilities 
 The information will be saved onto a csv file on your laptop called ‘newClientData.csv’
 
-###Future work: 
+### Future work: 
 Currently, the model will only generate a prediction with data that it has seen. Trying to input unknown categorical values will break the model, so the model has pre-set choices. 
 
 To improve the generalizability of the model, it would be best to turn payment_periods and amount_approved into buckets rather than factors and a numerical value, respectively. With the data quality guidelines, we’re expecting to have more standardized data.
